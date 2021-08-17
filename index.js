@@ -18,8 +18,13 @@ async function fileOperTest() {
 async function dbTest() {
     let fd = await bptree.init("test.db")
     let key = Buffer.alloc(constant.KEY_MAX_LEN)
-    key.writeInt32LE(100) // 键值100序列化
-    await bptree.insert(key, 100)
+
+    for (var value = 97; value >= 97; value--) {
+        key.fill(0)
+        key.writeInt32LE(value) 
+        await bptree.insert(key, value)
+    }
+
     await bptree.flush(fd)
     await fileops.closeFile(fd)
 }
