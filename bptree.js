@@ -216,14 +216,16 @@ function locatePage(key, currPage) {
     }
     if (!found) {
         if (pageIndex == 0) { // 说明还没有分配叶子值
-            let page = newPage(0) // 生成叶子节点
-            page.parent = currPage.index // 父页节点下标
             let pageNum = Object.getOwnPropertyNames(pageMap).length
+            let page = newPage(0) // 生成叶子节点
             pageMap[pageNum] = page // 插入到缓存表
+            page.parent = currPage.index // 父页节点下标
+            page.index = pageNum
             page.dirty = true
+            // TODO 填充key值
             cells[cellIndex].index = pageNum
             currPage.dirty = true
-            currPage.used++ 
+            currPage.used++
             return page
         } else {
             return locatePage(key, pageMap[pageIndex]) // 子页面节点查找
@@ -244,7 +246,11 @@ function locatePage(key, currPage) {
 function findInsertPos(key, page) {
     for (var i = ORDER_NUM - 1; i >= 0; i--) {
         if (key.compare(page.cells[i].key) >= 0) { // 找到位置
-            return i + 1
+            let pos = i + 1
+            // if (pos >= ORDER_NUM) {
+            //     pos = ORDER_NUM - 1
+            // }
+            return pos
         }
     }
     return 0 // 找不到比自己小的，存为第一个
@@ -325,9 +331,11 @@ function needUpdateMax(key) {
 
 function updateMax(page, key) {
     page.dirty = true
-    key.copy(page.cells[ORDER_NUM - 1].key, 0, 0, ORDER_NUM)
-    if (page.cells[ORDER_NUM - 1].index > 0 && page.type > 0) {
-        updateMax(pageMap[page.cells[ORDER_NUM - 1].index], key)
+    key.copy(page.cells[ORDER_NUM - 1].key, 0, 0, KEY_MAX_LEN)    // TODO ORDER_NUM -> KEY_MAX_LEN
+    let childIndex = page.cells[ORDER_NUM - 1].index
+    console.log("childIndex = " + childIndex)
+    if (childIndex > 0 && pageMap[childIndex].type > 0) {
+        updateMax(pageMap[childIndex], key) 
     }
 }
 
