@@ -32,6 +32,7 @@ const {
 } = require("./const.js");
 
 const fileops = require("./fileops.js");
+var fs = require('fs');
 
 var rootPage = undefined // 根页面 
 const pageMap = {} // 页链表
@@ -91,6 +92,18 @@ function rebuildRootPage(page, left, right) {
     page.cells[ORDER_NUM - 1] = newCell(right.cells[ORDER_NUM - 1].key, right.index)
     page.prev = -1
     page.used = 2 // 左右两个子节点
+
+    // left节点以及right节点的子节点的parent设置成自身
+    for (var idx = 0; idx < left.used; idx++) {
+        var childIndex = left.cells[ORDER_NUM - 1 - idx].index
+        pageMap[childIndex].parent = left.index
+    }
+
+    for (var idx = 0; idx < right.used; idx++) {
+        var childIndex = right.cells[ORDER_NUM - 1 - idx].index
+        pageMap[childIndex].parent = right.index
+    }
+
 }
 
 function copyPage(target, source) {
@@ -254,9 +267,6 @@ function findInsertPos(key, page) {
     for (var i = ORDER_NUM - 1; i >= 0; i--) {
         if (key.compare(page.cells[i].key) >= 0) { // 找到位置
             let pos = i + 1
-            // if (pos >= ORDER_NUM) {
-            //     pos = ORDER_NUM - 1
-            // }
             return pos
         }
     }
@@ -343,7 +353,7 @@ function updateMax(page, key) {
     let childIndex = page.cells[ORDER_NUM - 1].index
     console.log("childIndex = " + childIndex)
     if (childIndex > 0 && pageMap[childIndex].type > 0) {
-        updateMax(pageMap[childIndex], key) 
+        updateMax(pageMap[childIndex], key)
     }
 }
 
@@ -364,6 +374,7 @@ async function flush(fd) {
             fileops.writeFile(fd, buff, 0, PAGE_SIZE, index * PAGE_SIZE)
         }
     }
+    fileops.syncFile(fd)
 }
 
 var bptree = {
