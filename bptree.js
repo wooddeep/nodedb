@@ -33,9 +33,10 @@ const {
 
 const fileops = require("./fileops.js");
 
-
 var rootPage = undefined // 根页面 
 const pageMap = {} // 页链表
+const fidMap = {}
+
 
 function newCell(keyBuf = undefined, value = 0) {
     if (keyBuf == undefined) {
@@ -86,8 +87,9 @@ function rebuildRootPage(page, left, right) {
         var cell = newCell()
         page.cells[index] = cell
     }
-    page.cells[ORDER_NUM - 2] = left.cells[ORDER_NUM - 1]
-    page.cells[ORDER_NUM - 1] = right.cells[ORDER_NUM - 1]
+    page.cells[ORDER_NUM - 2] = newCell(left.cells[ORDER_NUM - 1].key, left.index)
+    page.cells[ORDER_NUM - 1] = newCell(right.cells[ORDER_NUM - 1].key, right.index)
+    page.prev = -1
     page.used = 2 // 左右两个子节点
 }
 
@@ -152,14 +154,15 @@ function buffToPage(buf) {
     }
 }
 
-async function init(filename) {
-    let exist = await fileops.existFile(filename)
+async function init(dbname) {
+    let exist = await fileops.existFile(dbname)
     if (!exist) { // 文件不存在则创建
-        await fileops.createFile(filename)
+        await fileops.createFile(dbname)
     }
 
-    let fd = await fileops.openFile(filename)
+    let fd = await fileops.openFile(dbname)
     console.log("fd = " + fd)
+    fidMap[dbname] = fd
     let stat = await fileops.statFile(fd)
     console.log("file size = " + stat.size)
 
@@ -190,6 +193,10 @@ async function init(filename) {
     }
 
     return fd
+}
+
+async function close(dbname) {
+    await fileops.closeFile(fidMap[dbname])
 }
 
 /*
@@ -305,6 +312,7 @@ function innerInsert(targetPage, key, value) {
             pageMap[moveIndex] = movePage
             copyPage(movePage, targetPage)
             movePage.type = 1 // 降为茎节点
+            movePage.index = moveIndex
             movePage.parent = 0 // 父节点为根节点
             movePage.prev = brotherPage.index
             movePage.dirty = true
@@ -360,6 +368,7 @@ async function flush(fd) {
 
 var bptree = {
     init: init,
+    close: close,
     insert: insert,
     flush: flush,
     rootPage: rootPage,
