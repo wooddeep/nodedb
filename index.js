@@ -15,7 +15,7 @@ async function fileOperTest() {
 async function dbTest() {
     let dbname = "test.db"
     let fd = await bptree.init(dbname)
-    for (var value = 100; value >= 87; value--) {    // 先定位指针的问题
+    for (var value = 100; value >= 80; value--) {    // 先定位指针的问题
         let key = Buffer.alloc(constant.KEY_MAX_LEN)
         key.fill(0)
         key.writeInt32LE(value)

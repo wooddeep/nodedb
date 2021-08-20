@@ -308,12 +308,17 @@ function innerInsert(targetPage, key, value) {
         targetPage.dirty = true
 
         // 1. 把原来的页的cells的前半部分挪入新页的cells, 清除原来页的cells的前半部分
+        brotherPage.used = MORE_HALF_NUM
         for (var i = MORE_HALF_NUM - 1; i >= 0; i--) {
             brotherPage.cells[(ORDER_NUM - 1) - (MORE_HALF_NUM - 1 - i)] = targetPage.cells[i]
-            brotherPage.used = MORE_HALF_NUM
+            if (brotherPage.type > 0) {
+                let childIndex = targetPage.cells[i].index
+                pageMap[childIndex].parent = brotherPage.index // 更新子节点的父节点索引
+            }
             targetPage.cells[i] = newCell()
-            targetPage.used = ORDER_NUM + 1 - MORE_HALF_NUM
         }
+        
+        targetPage.used = ORDER_NUM + 1 - MORE_HALF_NUM
         targetPage.cells.shift() // 补充，把左侧多余的一个删除
 
         if (targetPage.type == 2) { // 如果分裂了root节点
@@ -329,6 +334,11 @@ function innerInsert(targetPage, key, value) {
             brotherPage.type = 1 // 茎节点
             brotherPage.parent = 0
             brotherPage.next = moveIndex
+            for (var i = 0; i < movePage.used; i++) {  // move 之后，其子节点的parent需要修改
+                let childIndex = movePage.cells[ORDER_NUM - 1 - i].index
+                pageMap[childIndex].parent = moveIndex
+            }
+
             brotherPage.dirty = true
             rebuildRootPage(targetPage, brotherPage, movePage) // 设置根节点的cell
             return
