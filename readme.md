@@ -32,6 +32,7 @@ dbTest()
 </br>
 
 ### 3.1 页节点结构说明  
+![page struct](image/page-struct.png) {:height="50%" width="50%"}   
 
 ### 3.2 页节点存储说明   
 
