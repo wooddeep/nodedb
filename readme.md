@@ -32,10 +32,19 @@ dbTest()
 </br>
 
 ### 3.1 页节点结构说明   
-页节点的头5个字段分别存储的为页类型、父页节点下标、兄页节点下标、弟叶结点下标、节点内已经填充的数据个数，这个5个字段都是4个字节，以小端模式存储。  
+页节点的头5个字段分别存储的为页类型、父页节点下标、兄页节点下标、弟叶结点下标、节点内已经填充的数据个数，这个5个字段都是4个字节，以小端模式存储。这5个字段长度的定位在const.js文件中如下：  
+```javascript
+const PAGE_PARENT_IDX_LEN = 4
+const PAGE_PREV_IDX_LEN = 4
+const PAGE_NEXT_IDX_LEN = 4
+const PAGE_TYPE_LEN = 4
+const CELL_USED_LEN = 4
+```
+
 <img src="image/page-struct.png" alt="drawing" width="300"/>  
 
-</br> 
+</br>  
+
 
 ### 3.2 页节点存储说明   
 
