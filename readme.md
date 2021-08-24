@@ -37,12 +37,23 @@ dbTest()
 const PAGE_PARENT_IDX_LEN = 4
 const PAGE_PREV_IDX_LEN = 4
 const PAGE_NEXT_IDX_LEN = 4
-const PAGE_TYPE_LEN = 4
+const PAGE_TYPE_LEN = 4 // 页类型：2 ~ 头结点; 1 ~ 茎节点; 0 ~ 页节点
 const CELL_USED_LEN = 4
 ```
+从每页的第20（4 * 5）个字节开始, 便存储的是页的具体数据，以键值对（KEY：VAL）的形式，存储的页的数据。其中，若页的类型为2或者1， 则VAL存储的是子节点的页节点下标，若页类型为0，则VAL存储的是具体的数值, 这里设计存储4字节的整形数据，后续可扩展。其中键和值的所占字节长度定义在const.js文件中：   
+```javascript
+const KEY_MAX_LEN = 10 // 键最大长度
+const VAL_IDX_LEN = 4  // 值长度, 根或茎节点指向子页面, 叶子节点指向值
+```
+为了调试方便，设置页的大小为64，这样，每页中最大的键值对个数为3，即ORDER_NUM，定义在const.js文件中：
+```javascript
+const PAGE_SIZE = 64 // 页大小
+const ORDER_NUM = Math.floor((PAGE_SIZE - PAGE_TYPE_LEN - PAGE_PARENT_IDX_LEN - CELL_USED_LEN - PAGE_PREV_IDX_LEN - PAGE_NEXT_IDX_LEN) / (KEY_MAX_LEN + VAL_IDX_LEN)) // b+树的阶
+```
+当然，在调试成功之后，可以扩大PAGE_SIZE, 以增加每页可存储的数据。
 
+</br>
 <img src="image/page-struct.png" alt="drawing" width="300"/>  
-
 </br>  
 
 
@@ -71,19 +82,17 @@ const CELL_USED_LEN = 4
 
 **d. 插入93未分裂:**       
 节点内数据个数为4， 大于order数目，需要对节点数据分裂，分裂后，左右点数据为97、98，右节点数据为99、100，分别取两个节点的最大值98，100，抽取作为父节点的数据：  
-
-![93-pre 图标](image/93-pre.png)  
+<img src="image/93-pre.png" alt="drawing" width="600"/>  
 </br>
 
 **e. 插入93分裂:**   
 93 ~ 96 四个数据，进行分裂，分裂后，94和96提升到父节点中，父节点的数据为94、96、98、100,父节点数据为4，继续对父节点进行分裂：  
-![93 图标](image/93.png) 
-
+<img src="image/93.png" alt="drawing" width="600"/>  
 </br>
 
 **...... 连续插入(省略)**   
 </br>
 
 **f. 最后，插入数据80，进行分裂的结果为:**  
-![80 图标](image/80.png)  
+<img src="image/80.png" alt="drawing" width="600"/>  
 
