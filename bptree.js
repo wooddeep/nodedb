@@ -381,6 +381,28 @@ function select(key) {
     return undefined
 }
 
+function remove(key) {
+    if (key.compare(rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大值
+        winston.error("key not found")
+        return false
+    }
+
+    let targetPage = locatePage(key, rootPage) // 目标叶子节点
+    let slotIndex = undefined
+    for (var i = ORDER_NUM - 1 ; i >= 0; i--) {
+        if (key.compare(targetPage.cells[i].key) == 0) { // 找到位置
+            slotIndex = i
+            break
+        }
+    }
+
+    if (slotIndex == undefined) { // 未扎到数据
+        winston.error("key not found")
+        return false
+    }
+
+}
+
 async function flush(fd) {
     let pageNum = Object.getOwnPropertyNames(pageMap).length // 页数
     for (var index = 0; index < pageNum; index++) {
@@ -399,6 +421,7 @@ var bptree = {
     insert: insert,
     flush: flush,
     select: select,
+    remove: remove,
     rootPage: rootPage,
     pageMap: pageMap,
 }

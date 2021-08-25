@@ -57,7 +57,7 @@ function readFile(fd, buf, off = 0, len = PAGE_SIZE, pos = 0) {
                 console.log(err)
                 reject(err)
             }
-            winston.info(bytes + "  字节被读取");
+            winston.info(bytes + "字节被读取");
             resolve(bytes)
         });
     })
@@ -138,7 +138,7 @@ function closeFile(fd) {
                 console.error(err);
                 reject(err)
             }
-            //console.log("文件关闭成功！");
+            winston.info("文件关闭成功！");
             resolve(true)
         });
     })
