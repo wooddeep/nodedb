@@ -353,21 +353,38 @@ function needUpdateMax(key) {
     return false
 }
 
-function updateMax(page, key) {
+function updateMaxToLeaf(page, key) {
     page.dirty = true
     key.copy(page.cells[ORDER_NUM - 1].key, 0, 0, KEY_MAX_LEN)    // TODO ORDER_NUM -> KEY_MAX_LEN
     let childIndex = page.cells[ORDER_NUM - 1].index
     console.log("childIndex = " + childIndex)
     if (childIndex > 0 && pageMap[childIndex].type > 0) {
-        updateMax(pageMap[childIndex], key)
+        updateMaxToLeaf(pageMap[childIndex], key)
     }
+}
+
+function updateMaxToRoot(page, old, now) {
+    page.dirty = true
+
+    let upParent = false
+    for (var i = 0; i < ORDER_NUM; i++) {
+        if (page.cells[i].key.compare(old) == 0) { // 替换
+            now.copy(page.cells[i].key, 0, 0, KEY_MAX_LEN)  // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
+            upParent = true
+        }
+    }
+
+    if (upParent) {
+        updateMaxToRoot(pageMap[page.parent], old, now)
+    }
+
 }
 
 function insert(key, value) {
     let targetPage = locatePage(key, rootPage) // 目标叶子节点
     innerInsert(targetPage, key, value)
     if (needUpdateMax(key)) {
-        updateMax(rootPage, key)
+        updateMaxToLeaf(rootPage, key)
     }
 }
 
@@ -388,29 +405,35 @@ function remove(kbuf) {
     }
 
     let targetPage = locatePage(kbuf, rootPage) // 目标叶子节点
-    let slotIndex = undefined
+    let cellIndex = undefined
     for (var i = ORDER_NUM - 1 ; i >= 0; i--) {
         if (kbuf.compare(targetPage.cells[i].key) == 0) { // 找到位置
-            slotIndex = i
+            cellIndex = i
             break
         }
     }
 
-    if (slotIndex == undefined) { // 未找到数据
+    if (cellIndex == undefined) { // 未找到数据
         winston.error(`key：${tools.int32le(kbuf)} not found`) 
         return false
     }
 
     // 开始进行实际的删除操作
     targetPage.dirty = true
-    targetPage.cells.splice(slotIndex, 1) // 删除从slotIndex下标开始的1个元素
+    let old = targetPage.cells[ORDER_NUM - 1].key
+    targetPage.cells.splice(cellIndex, 1) // 删除从cellIndex下标开始的1个元素
     targetPage.used-- // 减去使用的个数
     if (targetPage.cells.length < ORDER_NUM) { // 删除使数据槽位变少
         let cell = newCell()
         targetPage.cells.splice(0, 0, cell) // 则需要从左侧补充一个
     }
     
-    // TODO 若删除的值是该页的最大值，则需要更新父节点的kv值
+    // TODO 1. 若删除的值是该页的最大值，则需要更新父节点的kv值
+    if (cellIndex == ORDER_NUM - 1) {
+        let now = targetPage.cells[ORDER_NUM - 1].key
+        let ppage = pageMap[targetPage.parent]
+        updateMaxToRoot(ppage, old, now)
+    }
 
     // TODO 1. 删除数据后，节点的数据小于 LESS_HALF_NUM, 则需要归并或借用
 
