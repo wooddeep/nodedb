@@ -155,7 +155,7 @@ function buffToPage(buf) {
         cells.push(cell)
     }
 
-    console.log("page type = " + type)
+    //console.log("page type = " + type)
 
     return {
         type: type,
@@ -174,10 +174,10 @@ async function init(dbname) {
     }
 
     let fd = await fileops.openFile(dbname)
-    console.log("fd = " + fd)
+    //console.log("fd = " + fd)
     fidMap[dbname] = fd
     let stat = await fileops.statFile(fd)
-    console.log("file size = " + stat.size)
+    //console.log("file size = " + stat.size)
 
     if (stat.size < PAGE_SIZE) { // 空文件, 写入一页
         rootPage = newPage(2)    // 新生成一个根页面
@@ -192,13 +192,13 @@ async function init(dbname) {
 
     let buff = Buffer.alloc(PAGE_SIZE)
     let bytes = await fileops.readFile(fd, buff, OFFSET_START, PAGE_SIZE, 0) // 文件第一页，始终放置root页
-    console.log("read bytes:" + bytes)
+    //console.log("read bytes:" + bytes)
     rootPage = buffToPage(buff)
     rootPage.index = 0
     pageMap[0] = rootPage
     for (var index = PAGE_SIZE; index < stat.size; index += PAGE_SIZE) {
         let bytes = await fileops.readFile(fd, buff, OFFSET_START, PAGE_SIZE, index) // 非root页
-        console.log("read bytes:" + bytes)
+        //console.log("read bytes:" + bytes)
         let pageNode = buffToPage(buff)
         let pageIndex = Math.floor(index / PAGE_SIZE)
         pageNode.index = pageIndex
@@ -375,6 +375,16 @@ function insert(key, value) {
     }
 }
 
+function select(key) {
+    let targetPage = locatePage(key, rootPage) // 目标叶子节点
+    for (var i = ORDER_NUM - 1 ; i >= 0; i--) {
+        if (key.compare(targetPage.cells[i].key) == 0) { // 找到位置
+            return targetPage.cells[i].index
+        }
+    }
+    return undefined
+}
+
 async function flush(fd) {
     let pageNum = Object.getOwnPropertyNames(pageMap).length // 页数
     for (var index = 0; index < pageNum; index++) {
@@ -392,6 +402,7 @@ var bptree = {
     close: close,
     insert: insert,
     flush: flush,
+    select: select,
     rootPage: rootPage,
     pageMap: pageMap,
 }

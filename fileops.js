@@ -20,7 +20,7 @@ function openFile(filename) {
                 console.error(err)
                 reject(err)
             }
-            console.log("文件打开成功！")
+            //console.log("文件打开成功！")
             resolve(fd)
         });
     });
@@ -57,7 +57,7 @@ function readFile(fd, buf, off = 0, len = PAGE_SIZE, pos = 0) {
                 console.log(err)
                 reject(err)
             }
-            console.log(bytes + "  字节被读取");
+            //console.log(bytes + "  字节被读取");
             resolve(bytes)
         });
     })
@@ -78,7 +78,7 @@ function writeFile(fd, buf, offset, length, pos = 0) {
                 console.error(err);
                 reject(err)
             }
-            console.log("数据写入成功！");
+            //console.log("数据写入成功！");
             resolve(true)
         });
     })
@@ -138,7 +138,7 @@ function closeFile(fd) {
                 console.error(err);
                 reject(err)
             }
-            console.log("文件关闭成功！");
+            //console.log("文件关闭成功！");
             resolve(true)
         });
     })
