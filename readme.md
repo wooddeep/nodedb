@@ -84,6 +84,30 @@ const ORDER_NUM = Math.floor((PAGE_SIZE - PAGE_TYPE_LEN - PAGE_PARENT_IDX_LEN - 
 
 #### 3.2.2 内存存储
 
+借助于nodejs的特性，以map存储页的索引以及对应的页内容，定义在bptree.js文件中：
+```javascript
+var rootPage = undefined // 根页面
+const pageMap = {} // 页节点表
+
+function newPage(type) {
+    var cells = []
+    for (var index = 0; index < ORDER_NUM; index++) { // 叶结点内数据数组
+        var cell = newCell()
+        cells.push(cell)
+    }
+
+    return {
+        type: type,        // 页类型：2 ~ 根, 1 ~ 中间节点, 0 ~ 叶子节点
+        parent: -1,         // 父节点
+        next: -1,           // 兄节点
+        prev: -1,           // 弟节点 
+        used: 0,
+        cells: cells,       // 数组数组
+    }
+}
+
+```
+
 </br>
 
 ### 3.3 页节点插入数据(选取具有说明性的步骤)  
