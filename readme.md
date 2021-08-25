@@ -50,12 +50,22 @@ const VAL_IDX_LEN = 4  // 值长度, 根或茎节点指向子页面, 叶子节�
 const PAGE_SIZE = 64 // 页大小
 const ORDER_NUM = Math.floor((PAGE_SIZE - PAGE_TYPE_LEN - PAGE_PARENT_IDX_LEN - CELL_USED_LEN - PAGE_PREV_IDX_LEN - PAGE_NEXT_IDX_LEN) / (KEY_MAX_LEN + VAL_IDX_LEN)) // b+树的阶
 ```
-当然，在调试成功之后，可以扩大PAGE_SIZE, 以增加每页可存储的数据。
+当然，在调试成功之后，可以扩大PAGE_SIZE, 以增加每页可存储的数据。  
 
+页节点的存储布局：  
 </br>
 <div align=center>
 <img src="image/page-struct.png" alt="drawing" width="300"/>  
 </div>
+
+页节点的关联关系：  
+</br>
+<div align=center>
+<img src="image/page-relation.png" alt="drawing" width="600"/>  
+</div>
+
+每个页节点的PARENT存储父节点的节点下标，NEXT存储兄节点的节点下标，PREV存储弟节点的节点下标，若节点类型非页节点，则VAL存储字节点的下标，否则存储具体的数值。  
+
 </br>  
 
 
