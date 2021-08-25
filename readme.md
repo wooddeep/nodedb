@@ -66,22 +66,22 @@ const ORDER_NUM = Math.floor((PAGE_SIZE - PAGE_TYPE_LEN - PAGE_PARENT_IDX_LEN - 
 ### 3.2 页节点插入数据(选取具有说明性的步骤)  
 
 **a. 插入98:**     
-<center> 
+<div align=center>
 <img src="image/98.png" alt="drawing" width="200"/>  
-</center> 
+</div> 
 </br>
 
 **b. 插入97未分裂:**     
-<center> 
+<div align=center>
 <img src="image/97-pre.png" alt="drawing" width="200"/>  
-</center> 
+</div> 
 </br>
 
 **c. 插入97分裂:**      
 节点内数据个数为4， 大于order数目，需要对节点数据分裂，分裂后，左右点数据为97、98，右节点数据为99、100，分别取两个节点的最大值98，100，抽取作为父节点的数据：  
-<center> 
+<div align=center>
 <img src="image/97.png" alt="drawing" width="400"/>  
-</center> 
+</div> 
 </br>
 
 **...... 连续插入(省略)**
@@ -89,22 +89,22 @@ const ORDER_NUM = Math.floor((PAGE_SIZE - PAGE_TYPE_LEN - PAGE_PARENT_IDX_LEN - 
 
 **d. 插入93未分裂:**       
 节点内数据个数为4， 大于order数目，需要对节点数据分裂，分裂后，左右点数据为97、98，右节点数据为99、100，分别取两个节点的最大值98，100，抽取作为父节点的数据：  
-<center> 
+<div align=center>
 <img src="image/93-pre.png" alt="drawing" width="600"/>  
-</center> 
+</div> 
 </br>
 
 **e. 插入93分裂:**   
 93 ~ 96 四个数据，进行分裂，分裂后，94和96提升到父节点中，父节点的数据为94、96、98、100,父节点数据为4，继续对父节点进行分裂： 
-<center> 
+<div align=center>
 <img src="image/93.png" alt="drawing" width="600"/>  
-</center>
+</div>
 </br>
 
 **...... 连续插入(省略)**   
 </br>
 
 **f. 最后，插入数据80，进行分裂的结果为:**  
-<center>
+<div align=center>
 <img src="image/80.png" alt="drawing" width="600"/>  
-</center>
+</div>
