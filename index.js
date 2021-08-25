@@ -38,6 +38,6 @@ async function findTest(key) {
     console.log("value = " + value)
 }
 
-//findTest(85)
+//winston.info('You have successfully started working with winston and morgan');
+findTest(85)
 
-winston.info('You have successfully started working with winston and morgan');

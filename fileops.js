@@ -3,7 +3,7 @@
  * History: create at 20210811
  */
 
-
+const winston = require('./winston/config');
 var fs = require('fs');
 const { PAGE_SIZE } = require('./const');
 
@@ -20,7 +20,7 @@ function openFile(filename) {
                 console.error(err)
                 reject(err)
             }
-            //console.log("文件打开成功！")
+            winston.info("文件打开成功！")
             resolve(fd)
         });
     });
@@ -35,7 +35,7 @@ function createFile(filename) {
                 console.log(err)
                 reject(err)
             }
-            console.log("The file was saved!")
+            winston.info("The file was saved!")
             resolve(true)
         });
     });
@@ -57,7 +57,7 @@ function readFile(fd, buf, off = 0, len = PAGE_SIZE, pos = 0) {
                 console.log(err)
                 reject(err)
             }
-            //console.log(bytes + "  字节被读取");
+            winston.info(bytes + "  字节被读取");
             resolve(bytes)
         });
     })
@@ -78,7 +78,7 @@ function writeFile(fd, buf, offset, length, pos = 0) {
                 console.error(err);
                 reject(err)
             }
-            //console.log("数据写入成功！");
+            winston.info("数据写入成功！");
             resolve(true)
         });
     })
@@ -92,7 +92,7 @@ function statFile(fd) {
                 console.error(error)
                 reject(error)
             } else {
-                //console.log(stats)
+                winston.info(stats)
                 resolve(stats)
             }
         })

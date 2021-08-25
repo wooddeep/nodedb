@@ -31,6 +31,7 @@ const {
     MORE_HALF_NUM
 } = require("./const.js");
 
+const winston = require('./winston/config');
 const fileops = require("./fileops.js");
 var fs = require('fs');
 
@@ -155,8 +156,6 @@ function buffToPage(buf) {
         cells.push(cell)
     }
 
-    //console.log("page type = " + type)
-
     return {
         type: type,
         parent: parent,
@@ -174,10 +173,9 @@ async function init(dbname) {
     }
 
     let fd = await fileops.openFile(dbname)
-    //console.log("fd = " + fd)
     fidMap[dbname] = fd
     let stat = await fileops.statFile(fd)
-    //console.log("file size = " + stat.size)
+    winston.info("file size = " + stat.size)
 
     if (stat.size < PAGE_SIZE) { // 空文件, 写入一页
         rootPage = newPage(2)    // 新生成一个根页面
@@ -192,13 +190,11 @@ async function init(dbname) {
 
     let buff = Buffer.alloc(PAGE_SIZE)
     let bytes = await fileops.readFile(fd, buff, OFFSET_START, PAGE_SIZE, 0) // 文件第一页，始终放置root页
-    //console.log("read bytes:" + bytes)
     rootPage = buffToPage(buff)
     rootPage.index = 0
     pageMap[0] = rootPage
     for (var index = PAGE_SIZE; index < stat.size; index += PAGE_SIZE) {
         let bytes = await fileops.readFile(fd, buff, OFFSET_START, PAGE_SIZE, index) // 非root页
-        //console.log("read bytes:" + bytes)
         let pageNode = buffToPage(buff)
         let pageIndex = Math.floor(index / PAGE_SIZE)
         pageNode.index = pageIndex
