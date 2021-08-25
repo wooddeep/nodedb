@@ -33,12 +33,12 @@ const {
 
 const winston = require('./winston/config');
 const fileops = require("./fileops.js");
+const tools = require('./tools')
 var fs = require('fs');
 
 var rootPage = undefined // 根页面 
-const pageMap = {} // 页链表
+const pageMap = {} // 页表
 const fidMap = {}
-
 
 function newCell(keyBuf = undefined, value = 0) {
     if (keyBuf == undefined) {
@@ -381,25 +381,38 @@ function select(key) {
     return undefined
 }
 
-function remove(key) {
-    if (key.compare(rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大值
-        winston.error("key not found")
+function remove(kbuf) {
+    if (kbuf.compare(rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大值
+        winston.error(`key: ${tools.int32le(kbuf)} not found`)
         return false
     }
 
-    let targetPage = locatePage(key, rootPage) // 目标叶子节点
+    let targetPage = locatePage(kbuf, rootPage) // 目标叶子节点
     let slotIndex = undefined
     for (var i = ORDER_NUM - 1 ; i >= 0; i--) {
-        if (key.compare(targetPage.cells[i].key) == 0) { // 找到位置
+        if (kbuf.compare(targetPage.cells[i].key) == 0) { // 找到位置
             slotIndex = i
             break
         }
     }
 
-    if (slotIndex == undefined) { // 未扎到数据
-        winston.error("key not found")
+    if (slotIndex == undefined) { // 未找到数据
+        winston.error(`key：${tools.int32le(kbuf)} not found`) 
         return false
     }
+
+    // 开始进行实际的删除操作
+    targetPage.dirty = true
+    targetPage.cells.splice(slotIndex, 1) // 删除从slotIndex下标开始的1个元素
+    targetPage.used-- // 减去使用的个数
+    if (targetPage.cells.length < ORDER_NUM) { // 删除使数据槽位变少
+        let cell = newCell()
+        targetPage.cells.splice(0, 0, cell) // 则需要从左侧补充一个
+    }
+    
+    // TODO 若删除的值是该页的最大值，则需要更新父节点的kv值
+
+    // TODO 1. 删除数据后，节点的数据小于 LESS_HALF_NUM, 则需要归并或借用
 
 }
 

@@ -15,19 +15,19 @@ async function fileOperTest() {
 }
 
 async function writeTest() {
-    let dbname = "test.db"
+    let dbname = "test_80.db"
     let fd = await bptree.init(dbname)
     for (var value = 100; value >= 80; value--) {
         let kbuf = tools.buffer(value)
         await bptree.insert(kbuf, value)
     }
     await bptree.flush(fd)
-    //await bptree.close(dbname)
+
 }
 
 async function findTest(key) {
     let dbname = "test.db"
-    let fd = await bptree.init(dbname)
+    await bptree.init(dbname)
 
     let kbuf = tools.buffer(key)
     let value = bptree.select(kbuf)
@@ -36,5 +36,17 @@ async function findTest(key) {
     console.log("value = " + value)
 }
 
-findTest(85)
+async function removeTest(key) {
+    let dbname = "test.db"
+    let fd = await bptree.init(dbname)
 
+    let kbuf = tools.buffer(key)
+    bptree.remove(kbuf)
+    await bptree.flush(fd)
+}
+
+//writeTest()
+
+//findTest(80)
+
+removeTest(80)
