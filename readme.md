@@ -53,9 +53,9 @@ const ORDER_NUM = Math.floor((PAGE_SIZE - PAGE_TYPE_LEN - PAGE_PARENT_IDX_LEN - 
 当然，在调试成功之后，可以扩大PAGE_SIZE, 以增加每页可存储的数据。
 
 </br>
-<center> 
+<div align=center>
 <img src="image/page-struct.png" alt="drawing" width="300"/>  
-</center> 
+</div>
 </br>  
 
 
