@@ -72,7 +72,7 @@ const ORDER_NUM = Math.floor((PAGE_SIZE - PAGE_TYPE_LEN - PAGE_PARENT_IDX_LEN - 
 
 ### 3.2 页节点存储说明   
 #### 3.2.1 磁盘存储
-数据按页连续存入单文件中，第1页的范围为0~63byte, 页下标为0，第2页的范围为64~127byte，页下标为1，依次内推，以插入数据100为例，存储文件以16进制dump出来显示如下：  
+数据按页连续存入单文件中，第1页的范围为0-63byte, 页下标为0，第2页的范围为64-127byte，页下标为1，依次内推，以插入数据100为例，存储文件以16进制dump出来显示如下：  
 <div align=center>
 <img src="image/100-store.png" alt="drawing" width="600"/>  
 </div>
