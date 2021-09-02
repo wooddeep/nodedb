@@ -460,6 +460,7 @@ function merge(from, to) {
     }
 
     if (from.prev == to.index) { // 向弟节点merge，本页的值大于于兄节点的值
+        let old = to.cells[ORDER_NUM - 1].key
         for (var i = 0; i < from.used; i++) {
             let fromCell = from.cells[ORDER_NUM - from.used + i]
             to.cells.splice(ORDER_NUM, 0, fromCell) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
@@ -472,6 +473,13 @@ function merge(from, to) {
         if (nextIndex > 0) {
             pageMap[nextIndex].prev = to.index
             pageMap[nextIndex].dirty = true
+        }
+
+        // 更新to页面的最大值
+        let now = to.cells[ORDER_NUM - 1].key
+        let ppage = pageMap[to.parent]
+        if (now.compare(old) != 0) { // 值不一样则更新
+            updateMaxToRoot(ppage, old, now)
         }
     }
 
@@ -526,7 +534,7 @@ function borrow(to, from) {
         let cell = newCell()
         from.cells.splice(0, 0, cell) // 从左侧补充一个
         from.used--
-        
+
         // 更新from页面的最大值
         let old = beMov.key
         let now = from.cells[ORDER_NUM - 1].key
@@ -545,7 +553,7 @@ function borrow(to, from) {
         let cell = newCell()
         from.cells.splice(0, 0, cell) // 从左侧补充一个
         from.used--
-        
+
         // 更新to页面的最大值
         let now = beMov.key
         let old = from.cells[ORDER_NUM - 1].key
@@ -553,7 +561,7 @@ function borrow(to, from) {
         if (now.compare(old) != 0) { // 值不一样则更新
             updateMaxToRoot(ppage, old, now)
         }
-        
+
         to.cells.splice(ORDER_NUM, 0, beMov) // 移动到to页面中, 作为to页面的最大值
         to.cells.shift()
         to.used++
@@ -563,7 +571,7 @@ function borrow(to, from) {
     if (from.type > NODE_TYPE_LEAF) {
         let childPage = pageMap[beMov.index]
         childPage.dirty = true
-        childPage.parent = to.index 
+        childPage.parent = to.index
     }
 
     // // TODO from page变成空页，需要用过空闲页链表串起来 ......
