@@ -398,6 +398,76 @@ function select(key) {
     return undefined
 }
 
+/*
+ * 判断是否需要与兄弟节点进行合并，或者从兄弟节点借数
+ */
+function mergeOrBorrow(page) {
+    if (page.prev > 0) {
+        let prevIndex = page.prev
+        if (pageMap[prevIndex].used + page.used <= ORDER_NUM) {
+            return {
+                "method": "merge",
+                "index": prevIndex,
+            }
+        } else {
+            return {
+                "method": "borrow",
+                "index": prevIndex,
+            }
+        }
+    }
+
+    if (page.next > 0) {
+        let nextIndex = page.next
+        if (pageMap[nextIndex].used + page.used <= ORDER_NUM) {
+            return {
+                "method": "merge",
+                "index": nextIndex,
+            }
+        } else {
+            return {
+                "method": "borrow",
+                "index": nextIndex,
+            }
+        }
+    }
+}
+
+function merge(from, to) {
+    // 1. 把from的kv值逐一挪动到to
+    if (from.next == to.index) { // 向兄节点merge，本页的值小于兄节点的值
+        for (var i = 0; i < from.used; i++) {
+            to.cells.splice(ORDER_NUM - 1 - to.used - i, 1, from.cells[ORDER_NUM - 1 - i]) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
+            to.used++
+        }
+
+        let prevIndex = from.prev
+        if (prevIndex > 0) {
+            pageMap[prevIndex].next = to.index
+            to.prev = prevIndex
+        }
+    }
+
+    if (from.prev == to.index) { // 向弟节点merge，本页的值大于于兄节点的值
+        for (var i = 0; i < from.used; i++) {
+            to.cells.splice(ORDER_NUM, 0, from.cells[ORDER_NUM - from.used + i]) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
+            to.used++
+            targetPage.cells.shift() // remove left 
+        }
+
+        let nextIndex = from.next
+        if (nextIndex > 0) {
+            pageMap[nextIndex].prev = to.index
+            to.next = nextIndex
+        }
+    }
+
+}
+
+function borrow(to, from) {
+
+}
+
 function remove(kbuf) {
     if (kbuf.compare(rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大值
         winston.error(`key: ${tools.int32le(kbuf)} not found`)
@@ -428,15 +498,26 @@ function remove(kbuf) {
         targetPage.cells.splice(0, 0, cell) // 则需要从左侧补充一个
     }
     
-    // TODO 1. 若删除的值是该页的最大值，则需要更新父节点的kv值
+    // 1. 若删除的值是该页的最大值，则需要更新父节点的kv值
     if (cellIndex == ORDER_NUM - 1) {
         let now = targetPage.cells[ORDER_NUM - 1].key
         let ppage = pageMap[targetPage.parent]
-        updateMaxToRoot(ppage, old, now)
+        if (now.compare(old) != 0) { // 值不一样则更新
+            updateMaxToRoot(ppage, old, now)
+        }
     }
 
-    // TODO 1. 删除数据后，节点的数据小于 LESS_HALF_NUM, 则需要归并或借用
-
+    // TODO 2. 删除数据后，节点的使用数目小于 MORE_HALF_NUM, 则需要归并或借用
+    if (targetPage.used < MORE_HALF_NUM) {
+        let ret = mergeOrBorrow(targetPage)
+        if (ret.method == "merge") {
+            merge(targetPage, pageMap[ret.index])
+        }
+        if (ret.method == "borrow") {
+            borrow(targetPage, pageMap[ret.index])
+        }
+        winston.error(ret);
+    }
 }
 
 async function flush(fd) {
