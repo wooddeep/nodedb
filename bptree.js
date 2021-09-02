@@ -574,31 +574,6 @@ function borrow(to, from) {
         childPage.parent = to.index
     }
 
-    // // TODO from page变成空页，需要用过空闲页链表串起来 ......
-    // // 3. 从父节点中把对应的kv值删除, 递归判断是否需要对父节点进行借用或者合并
-    // let parent = pageMap[from.parent]
-    // for (var i = ORDER_NUM - parent.used; i < ORDER_NUM; i++) {
-    //     if (parent.cells[i].key.compare(beDel.key) == 0) {
-    //         parent.dirty = true
-    //         parent.cells.splice(i, 1)
-    //         parent.used--
-    //         let cell = newCell()
-    //         parent.cells.splice(0, 0, cell) // 则需要从左侧补充一个
-
-    //         if (parent.used < MORE_HALF_NUM) { // 判断是否需要对parent进行借用或者合并
-    //             let ret = mergeOrBorrow(parent)
-    //             if (ret.method == "merge") {
-    //                 merge(parent, pageMap[ret.index])
-    //             }
-    //             if (ret.method == "borrow") {
-    //                 borrow(parent, pageMap[ret.index])
-    //             }
-
-    //             // TODO
-    //             winston.error(ret);
-    //         }
-    //     }
-    // }
 }
 
 function remove(kbuf) {
