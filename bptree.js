@@ -28,8 +28,12 @@ const {
     CELL_LEN,
     CELL_START,
     LESS_HALF_NUM,
-    MORE_HALF_NUM
+    MORE_HALF_NUM,
+    NODE_TYPE_LEAF,
+    NODE_TYPE_STEM,
+    NODE_TYPE_ROOT,
 } = require("./const.js");
+
 
 const winston = require('./winston/config');
 const fileops = require("./fileops.js");
@@ -433,32 +437,77 @@ function mergeOrBorrow(page) {
     }
 }
 
+/*
+ * 如果把from 合并到 to, 则需要修改from子节点的parent
+ */
 function merge(from, to) {
-    // 1. 把from的kv值逐一挪动到to
+    // 1. 把from的kv值逐一挪动到to, 并修改prev与next指针
+    to.dirty = true
+    let beDel = from.cells[ORDER_NUM - 1]
     if (from.next == to.index) { // 向兄节点merge，本页的值小于兄节点的值
         for (var i = 0; i < from.used; i++) {
-            to.cells.splice(ORDER_NUM - 1 - to.used - i, 1, from.cells[ORDER_NUM - 1 - i]) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
+            let fromCell = from.cells[ORDER_NUM - 1 - i]
+            to.cells.splice(ORDER_NUM - 1 - to.used - i, 1, fromCell) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
             to.used++
         }
 
         let prevIndex = from.prev
+        to.prev = prevIndex // 替换prev
         if (prevIndex > 0) {
             pageMap[prevIndex].next = to.index
-            to.prev = prevIndex
+            pageMap[prevIndex].dirty = true
         }
     }
 
     if (from.prev == to.index) { // 向弟节点merge，本页的值大于于兄节点的值
         for (var i = 0; i < from.used; i++) {
-            to.cells.splice(ORDER_NUM, 0, from.cells[ORDER_NUM - from.used + i]) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
+            let fromCell = from.cells[ORDER_NUM - from.used + i]
+            to.cells.splice(ORDER_NUM, 0, fromCell) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
             to.used++
             targetPage.cells.shift() // remove left 
         }
 
         let nextIndex = from.next
+        to.next = nextIndex  // 替换next
         if (nextIndex > 0) {
             pageMap[nextIndex].prev = to.index
-            to.next = nextIndex
+            pageMap[nextIndex].dirty = true
+        }
+    }
+
+    // 2. 把from页面子节点的父节点索引替换成to页面的索引
+    if (from.type > NODE_TYPE_LEAF) {
+        for (var i = 0; i < from.used; i++) {
+            let childPage = pageMap[from.cells[ORDER_NUM - 1 - i].index]
+            childPage.dirty = true
+            childPage.parent = to.index
+        }
+    }
+
+    // TODO from page变成空页，需要用过空闲页链表串起来 ......
+
+    // 3. 从父节点中把对应的kv值删除, 递归判断是否需要对父节点进行借用或者合并
+    let parent = pageMap[from.parent]
+    for (var i = ORDER_NUM - parent.used; i < ORDER_NUM; i++) {
+        if (parent.cells[i].key.compare(beDel.key) == 0) {
+            parent.dirty = true
+            parent.cells.splice(i, 1)
+            parent.used--
+            let cell = newCell()
+            parent.cells.splice(0, 0, cell) // 则需要从左侧补充一个
+
+            if (parent.used < MORE_HALF_NUM) { // 判断是否需要对parent进行借用或者合并
+                let ret = mergeOrBorrow(parent)
+                if (ret.method == "merge") {
+                    merge(parent, pageMap[ret.index])
+                }
+                if (ret.method == "borrow") {
+                    borrow(parent, pageMap[ret.index])
+                }
+
+                // TODO
+                winston.error(ret);
+            }
         }
     }
 
