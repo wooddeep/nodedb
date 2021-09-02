@@ -317,7 +317,7 @@ function innerInsert(targetPage, key, value) {
             }
             targetPage.cells[i] = newCell()
         }
-        
+
         targetPage.used = ORDER_NUM + 1 - MORE_HALF_NUM
         targetPage.cells.shift() // 补充，把左侧多余的一个删除
 
@@ -394,7 +394,7 @@ function insert(key, value) {
 
 function select(key) {
     let targetPage = locatePage(key, rootPage) // 目标叶子节点
-    for (var i = ORDER_NUM - 1 ; i >= 0; i--) {
+    for (var i = ORDER_NUM - 1; i >= 0; i--) {
         if (key.compare(targetPage.cells[i].key) == 0) { // 找到位置
             return targetPage.cells[i].index
         }
@@ -464,7 +464,7 @@ function merge(from, to) {
             let fromCell = from.cells[ORDER_NUM - from.used + i]
             to.cells.splice(ORDER_NUM, 0, fromCell) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
             to.used++
-            targetPage.cells.shift() // remove left 
+            to.cells.shift() // remove left 
         }
 
         let nextIndex = from.next
@@ -504,8 +504,6 @@ function merge(from, to) {
                 if (ret.method == "borrow") {
                     borrow(parent, pageMap[ret.index])
                 }
-
-                // TODO
                 winston.error(ret);
             }
         }
@@ -513,8 +511,86 @@ function merge(from, to) {
 
 }
 
+/*
+ * 从from中，借用值到 to,则需要修改from子节点的parent
+ */
 function borrow(to, from) {
+    // 1. 把from的kv值逐一挪动到to, 并修改prev与next指针
+    to.dirty = true
+    from.dirty = true
+    let beMov = undefined
 
+    if (from.index == to.prev) { // 向弟节点borrow
+        beMov = from.cells[ORDER_NUM - 1] // 需要移动的cell
+        from.cells.splice(ORDER_NUM - 1, 1) // 删除from的最大值
+        let cell = newCell()
+        from.cells.splice(0, 0, cell) // 从左侧补充一个
+        from.used--
+        
+        // 更新from页面的最大值
+        let old = beMov.key
+        let now = from.cells[ORDER_NUM - 1].key
+        let ppage = pageMap[from.parent]
+        if (now.compare(old) != 0) { // 值不一样则更新
+            updateMaxToRoot(ppage, old, now)
+        }
+
+        to.cells.splice(ORDER_NUM - 1 - to.used, 1, beMov) // 移动到to页面中, 作为to页面的最小值，并替换原来的空值
+        to.used++
+    }
+
+    if (from.index == to.next) { // 向兄节点borrow
+        beMov = from.cells[ORDER_NUM - from.used] // 需要移动的cell
+        from.cells.splice(ORDER_NUM - from.used, 1) // 删除from的最小值
+        let cell = newCell()
+        from.cells.splice(0, 0, cell) // 从左侧补充一个
+        from.used--
+        
+        // 更新to页面的最大值
+        let now = beMov.key
+        let old = from.cells[ORDER_NUM - 1].key
+        let ppage = pageMap[to.parent]
+        if (now.compare(old) != 0) { // 值不一样则更新
+            updateMaxToRoot(ppage, old, now)
+        }
+        
+        to.cells.splice(ORDER_NUM, 0, beMov) // 移动到to页面中, 作为to页面的最大值
+        to.cells.shift()
+        to.used++
+    }
+
+    // 2. 把from页面子节点的父节点索引替换成to页面的索引
+    if (from.type > NODE_TYPE_LEAF) {
+        let childPage = pageMap[beMov.index]
+        childPage.dirty = true
+        childPage.parent = to.index 
+    }
+
+    // // TODO from page变成空页，需要用过空闲页链表串起来 ......
+    // // 3. 从父节点中把对应的kv值删除, 递归判断是否需要对父节点进行借用或者合并
+    // let parent = pageMap[from.parent]
+    // for (var i = ORDER_NUM - parent.used; i < ORDER_NUM; i++) {
+    //     if (parent.cells[i].key.compare(beDel.key) == 0) {
+    //         parent.dirty = true
+    //         parent.cells.splice(i, 1)
+    //         parent.used--
+    //         let cell = newCell()
+    //         parent.cells.splice(0, 0, cell) // 则需要从左侧补充一个
+
+    //         if (parent.used < MORE_HALF_NUM) { // 判断是否需要对parent进行借用或者合并
+    //             let ret = mergeOrBorrow(parent)
+    //             if (ret.method == "merge") {
+    //                 merge(parent, pageMap[ret.index])
+    //             }
+    //             if (ret.method == "borrow") {
+    //                 borrow(parent, pageMap[ret.index])
+    //             }
+
+    //             // TODO
+    //             winston.error(ret);
+    //         }
+    //     }
+    // }
 }
 
 function remove(kbuf) {
@@ -525,7 +601,7 @@ function remove(kbuf) {
 
     let targetPage = locatePage(kbuf, rootPage) // 目标叶子节点
     let cellIndex = undefined
-    for (var i = ORDER_NUM - 1 ; i >= 0; i--) {
+    for (var i = ORDER_NUM - 1; i >= 0; i--) {
         if (kbuf.compare(targetPage.cells[i].key) == 0) { // 找到位置
             cellIndex = i
             break
@@ -533,7 +609,7 @@ function remove(kbuf) {
     }
 
     if (cellIndex == undefined) { // 未找到数据
-        winston.error(`key：${tools.int32le(kbuf)} not found`) 
+        winston.error(`key：${tools.int32le(kbuf)} not found`)
         return false
     }
 
@@ -546,7 +622,7 @@ function remove(kbuf) {
         let cell = newCell()
         targetPage.cells.splice(0, 0, cell) // 则需要从左侧补充一个
     }
-    
+
     // 1. 若删除的值是该页的最大值，则需要更新父节点的kv值
     if (cellIndex == ORDER_NUM - 1) {
         let now = targetPage.cells[ORDER_NUM - 1].key
