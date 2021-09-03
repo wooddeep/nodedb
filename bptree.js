@@ -78,7 +78,7 @@ class Bptree {
         rootPage = _page.buffToPage(buff)
         rootPage.index = 0
         pageMap[0] = rootPage
-        for (var index = PAGE_SIZE; index < stat.size; index += PAGE_SIZE) {
+        for (var index = PAGE_SIZE; index < stat.size; index += PAGE_SIZE) { // 加载各页
             let bytes = await fileops.readFile(fd, buff, START_OFFSET, PAGE_SIZE, index) // 非root页
             let pageNode = _page.buffToPage(buff)
             let pageIndex = Math.floor(index / PAGE_SIZE)
@@ -121,6 +121,9 @@ class Bptree {
             pageMap[childIndex].parent = right.index
         }
 
+        _page.setKeyInCell(left, ORDER_NUM - 2)
+        _page.setKeyInCell(right, ORDER_NUM - 1)
+
     }
 
     /*
@@ -145,7 +148,7 @@ class Bptree {
             pageIndex = cells[0].index
             cellIndex = 0
         }
-        if (!found) {
+        if (!found) { // 键值大于最大值，或小于最小值
             if (pageIndex == 0) { // 说明还没有分配叶子值
                 let pageNum = Object.getOwnPropertyNames(pageMap).length
                 let page = _page.newPage(NODE_TYPE_LEAF) // 生成叶子节点
@@ -153,7 +156,6 @@ class Bptree {
                 page.parent = currPage.index // 父页节点下标
                 page.index = pageNum
                 page.dirty = true
-                // TODO 填充key值
                 cells[cellIndex].index = pageNum
                 currPage.dirty = true
                 currPage.used++
@@ -163,7 +165,7 @@ class Bptree {
             }
         }
 
-        for (var index = maxIndex; index >= 1; index--) { // TODO: 折半查找法
+        for (var index = maxIndex; index >= 1; index--) { // TODO: 折半查找法, 找到键值合适的位置
             if (key.compare(cells[index].key) <= 0 && key.compare(cells[index - 1].key) > 0) { // 查找到
                 let page = pageMap[cells[index].index]
                 return this.locateLeaf(key, page)
@@ -192,8 +194,9 @@ class Bptree {
     innerInsert(targetPage, key, value) {
         // 插入
         targetPage.dirty = true
-        let pos = this.findInsertPos(key, targetPage)
+        let pos = this.findInsertPos(key, targetPage) 
         targetPage.cells.splice(pos, 0, _page.newCell(key, value)) //  插入：splice(pos, <delete num> , value)
+
         targetPage.used++
         if (targetPage.used <= ORDER_NUM) {
             targetPage.cells.shift() // remove left 
@@ -221,12 +224,14 @@ class Bptree {
             // 1. 把原来的页的cells的前半部分挪入新页的cells, 清除原来页的cells的前半部分
             brotherPage.used = MORE_HALF_NUM
             for (var i = MORE_HALF_NUM - 1; i >= 0; i--) {
-                brotherPage.cells[(ORDER_NUM - 1) - (MORE_HALF_NUM - 1 - i)] = targetPage.cells[i]
+                let cellIndex = (ORDER_NUM - 1) - (MORE_HALF_NUM - 1 - i)
+                brotherPage.cells[cellIndex] = targetPage.cells[i]
+                //brotherPage.cells[cellIndex].keyIdx = cellIndex
                 if (brotherPage.type > NODE_TYPE_LEAF) {
                     let childIndex = targetPage.cells[i].index
                     pageMap[childIndex].parent = brotherPage.index // 更新子节点的父节点索引
                 }
-                targetPage.cells[i] = _page.newCell()
+                targetPage.cells[i] = _page.newCell() // 把原来的cell清空
             }
 
             targetPage.used = ORDER_NUM + 1 - MORE_HALF_NUM

@@ -22,6 +22,8 @@ const {
     CELL_USED_OFFSET,
 } = require("./const.js");
 
+const winston = require('./winston/config')
+
 class Page {
 
     // 构造方法
@@ -35,18 +37,18 @@ class Page {
         this.para = name;         //修改静态变量
         return 'Hello, ' + name;
     }
-
-    newCell(keyBuf = undefined, value = 0) {
+    
+    newCell(keyBuf = undefined, value = 0, keyIdx = -1) {
         if (keyBuf == undefined) {
             keyBuf = Buffer.alloc(KEY_MAX_LEN)
         }
         return {
             key: keyBuf,
-            keyIdx: -1,   // 在父节点中的cells中的下标
+            keyIdx: keyIdx,   // 在父节点中的cells中的下标
             index: value,
         }
     }
-    
+
     parseCell(buf) {
         var key = Buffer.alloc(KEY_MAX_LEN)
         buf.copy(key, 0, 0, KEY_MAX_LEN)
@@ -56,6 +58,12 @@ class Page {
             key: key,
             keyIdx: keyIdx,   // 在父节点中的cells中的下标
             index: index,
+        }
+    }
+
+    setKeyInCell(page, cellIndex) {
+        for (var i = ORDER_NUM - 1; i >= ORDER_NUM - 1 - page.used; i--) {
+            page.cells[i].keyIdx = cellIndex
         }
     }
 
