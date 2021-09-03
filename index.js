@@ -48,8 +48,8 @@ async function removeTest(key) {
     await bptree.flush(fd)
 }
 
-//writeTest()
+writeTest()
 
 //findTest(80)
 
-removeTest(90)
+//removeTest(85)

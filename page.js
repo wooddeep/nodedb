@@ -6,6 +6,7 @@
 const {
     START_OFFSET,
     KEY_MAX_LEN,
+    KEY_IDX_LEN,
     PAGE_SIZE,
     ORDER_NUM,
     CELL_LEN,
@@ -41,6 +42,7 @@ class Page {
         }
         return {
             key: keyBuf,
+            keyIdx: 0,   // 在父节点中的cells中的下标
             index: value,
         }
     }
@@ -48,9 +50,11 @@ class Page {
     parseCell(buf) {
         var key = Buffer.alloc(KEY_MAX_LEN)
         buf.copy(key, 0, 0, KEY_MAX_LEN)
-        var index = buf.readInt32LE(KEY_MAX_LEN)
+        var keyIdx = buf.readInt32LE(KEY_MAX_LEN) 
+        var index = buf.readInt32LE(KEY_MAX_LEN + KEY_IDX_LEN)
         return {
             key: key,
+            keyIdx: keyIdx,   // 在父节点中的cells中的下标
             index: index,
         }
     }
@@ -91,14 +95,13 @@ class Page {
         buff.writeInt32LE(page.next, PAGE_NEXT_OFFSET)
         buff.writeInt32LE(page.prev, PAGE_PREV_OFFSET)
         buff.writeInt32LE(page.used, CELL_USED_OFFSET)
-        var cellStart = CELL_OFFSET
-        var cellLength = CELL_LEN
 
         // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
         var cells = page.cells
         for (var ci = 0; ci < ORDER_NUM; ci++) {
-            cells[ci].key.copy(buff, cellStart + ci * cellLength, 0, KEY_MAX_LEN) // 键值
-            buff.writeInt32LE(cells[ci].index, cellStart + ci * cellLength + KEY_MAX_LEN) // 子节点索引值
+            cells[ci].key.copy(buff, CELL_OFFSET + ci * CELL_LEN, 0, KEY_MAX_LEN) // 键值
+            buff.writeInt32LE(cells[ci].keyIdx, CELL_OFFSET + ci * CELL_LEN + KEY_MAX_LEN) // 在父节点中的cells中的下标
+            buff.writeInt32LE(cells[ci].index, CELL_OFFSET + ci * CELL_LEN + (KEY_MAX_LEN + KEY_IDX_LEN)) // 子节点索引值
         }
 
         return buff
@@ -110,13 +113,11 @@ class Page {
         var next = buf.readInt32LE(PAGE_NEXT_OFFSET)
         var prev = buf.readInt32LE(PAGE_PREV_OFFSET)
         var used = buf.readInt32LE(CELL_USED_OFFSET) // 已经使用的cell
-        var cellStart = CELL_OFFSET
-        var cellLength = CELL_LEN
 
         var cells = []
         for (var index = 0; index < ORDER_NUM; index++) {
             var cellBuff = Buffer.alloc(CELL_LEN)
-            buf.copy(cellBuff, 0, cellStart + index * cellLength, cellStart + (index + 1) * cellLength)
+            buf.copy(cellBuff, 0, CELL_OFFSET + index * CELL_LEN, CELL_OFFSET + (index + 1) * CELL_LEN)
             var cell = this.parseCell(cellBuff)
             cells.push(cell)
         }

@@ -389,7 +389,7 @@ class Bptree {
             // 更新to页面的最大值
             let now = to.cells[ORDER_NUM - 1].key
             let ppage = pageMap[to.parent]
-            if (now.compare(old) != 0) { // 值不一样则更新
+            if (now.compare(old) != 0) { // 值不一样则更新 // TODO, 不要通过值对比找到父节点的kv值，通过下标获取
                 this.updateMaxToRoot(ppage, old, now)
             }
         }
@@ -414,7 +414,7 @@ class Bptree {
         // 4. 从父节点中把对应的kv值删除, 递归判断是否需要对父节点进行借用或者合并
         let parent = pageMap[from.parent]
         for (var i = ORDER_NUM - parent.used; i < ORDER_NUM; i++) {
-            if (parent.cells[i].key.compare(beDel.key) == 0) {
+            if (parent.cells[i].key.compare(beDel.key) == 0) { // TODO 遇到k值相同的情况下，出现问题
                 parent.dirty = true
                 parent.cells.splice(i, 1)
                 parent.used--

@@ -5,7 +5,8 @@
 
 const PAGE_SIZE = 64     // 页大小
 const START_OFFSET = 0   // 起始偏移量
-const KEY_MAX_LEN = 10   // 键值最大长度
+const KEY_MAX_LEN = 6    // 键值最大长度
+const KEY_IDX_LEN = 4    // 键值在父节点的cells中的下标
 const VAL_IDX_LEN = 4    // 值页索引长度, 如果中间节点指向子页面, 叶子节点指向值
 
 const PAGE_TYPE_LEN = 4       // 代表类型的字节数
@@ -22,7 +23,7 @@ const CELL_USED_OFFSET = PAGE_PREV_OFFSET + PAGE_PREV_IDX_LEN     // 弟索引�
 const CELL_OFFSET = CELL_USED_OFFSET + CELL_USED_LEN              // 存KV值的页内偏移
 const HEAD_LEN = CELL_OFFSET  
 
-const CELL_LEN = KEY_MAX_LEN + VAL_IDX_LEN                        // 每一对KV的长度
+const CELL_LEN = KEY_MAX_LEN + KEY_IDX_LEN + VAL_IDX_LEN          // 每一对KV的长度
 
 const ORDER_NUM = Math.floor((PAGE_SIZE - HEAD_LEN) / CELL_LEN)   // b+树的阶
 const LESS_HALF_NUM = Math.floor(ORDER_NUM / 2)  // 少的一半
@@ -34,6 +35,7 @@ const NODE_TYPE_ROOT = 2 // 根节点
 
 var constant = {
     KEY_MAX_LEN: KEY_MAX_LEN,
+    KEY_IDX_LEN: KEY_IDX_LEN,
     VAL_IDX_LEN: VAL_IDX_LEN,
     PAGE_SIZE: PAGE_SIZE,
     LESS_HALF_NUM: LESS_HALF_NUM,
