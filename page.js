@@ -42,7 +42,7 @@ class Page {
         }
         return {
             key: keyBuf,
-            keyIdx: 0,   // 在父节点中的cells中的下标
+            keyIdx: -1,   // 在父节点中的cells中的下标
             index: value,
         }
     }
