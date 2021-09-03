@@ -184,6 +184,8 @@ async function init(dbname) {
     if (stat.size < PAGE_SIZE) { // 空文件, 写入一页
         rootPage = newPage(2)    // 新生成一个根页面
         rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
+        rootPage.next = 0        // rootPage的prev和next指向自己，用于
+        rootPage.prev = 0
         pageMap[0] = rootPage
         let buff = pageToBuff(rootPage)
         let ret = await fileops.writeFile(fd, buff, 0, PAGE_SIZE)
@@ -215,7 +217,7 @@ async function close(dbname) {
 /*
  * 定位叶子页节点
  */
-function locatePage(key, currPage) {
+function locateLeaf(key, currPage) {
     let cells = currPage.cells
     let maxIndex = cells.length - 1
 
@@ -248,14 +250,14 @@ function locatePage(key, currPage) {
             currPage.used++
             return page
         } else {
-            return locatePage(key, pageMap[pageIndex]) // 子页面节点查找
+            return locateLeaf(key, pageMap[pageIndex]) // 子页面节点查找
         }
     }
 
     for (var index = maxIndex; index >= 1; index--) { // TODO: 折半查找法
         if (key.compare(cells[index].key) <= 0 && key.compare(cells[index - 1].key) > 0) { // 查找到
             let page = pageMap[cells[index].index]
-            return locatePage(key, page)
+            return locateLeaf(key, page)
         }
     }
 }
@@ -385,7 +387,7 @@ function updateMaxToRoot(page, old, now) {
 }
 
 function insert(key, value) {
-    let targetPage = locatePage(key, rootPage) // 目标叶子节点
+    let targetPage = locateLeaf(key, rootPage) // 目标叶子节点
     innerInsert(targetPage, key, value)
     if (needUpdateMax(key)) {
         updateMaxToLeaf(rootPage, key)
@@ -393,7 +395,7 @@ function insert(key, value) {
 }
 
 function select(key) {
-    let targetPage = locatePage(key, rootPage) // 目标叶子节点
+    let targetPage = locateLeaf(key, rootPage) // 目标叶子节点
     for (var i = ORDER_NUM - 1; i >= 0; i--) {
         if (key.compare(targetPage.cells[i].key) == 0) { // 找到位置
             return targetPage.cells[i].index
@@ -492,9 +494,15 @@ function merge(from, to) {
         }
     }
 
-    // TODO from page变成空页，需要用过空闲页链表串起来 ......
+    // 3. from page变成空页，需要用过空闲页链表串起来
+    let firstFreeIndex = rootPage.next
+    let firstFreePage = pageMap[firstFreeIndex]
+    rootPage.next = from.index
+    from.next = firstFreeIndex
+    from.prev = firstFreePage.prev
+    firstFreePage.prev = from.index
 
-    // 3. 从父节点中把对应的kv值删除, 递归判断是否需要对父节点进行借用或者合并
+    // 4. 从父节点中把对应的kv值删除, 递归判断是否需要对父节点进行借用或者合并
     let parent = pageMap[from.parent]
     for (var i = ORDER_NUM - parent.used; i < ORDER_NUM; i++) {
         if (parent.cells[i].key.compare(beDel.key) == 0) {
@@ -582,7 +590,7 @@ function remove(kbuf) {
         return false
     }
 
-    let targetPage = locatePage(kbuf, rootPage) // 目标叶子节点
+    let targetPage = locateLeaf(kbuf, rootPage) // 目标叶子节点
     let cellIndex = undefined
     for (var i = ORDER_NUM - 1; i >= 0; i--) {
         if (kbuf.compare(targetPage.cells[i].key) == 0) { // 找到位置
