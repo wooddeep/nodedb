@@ -18,7 +18,6 @@
 //  +---------------+
 //
 
-
 //const { PAGE_PARENT_IDX_LEN, PAGE_PREV_IDX_LEN, PAGE_NEXT_IDX_LEN } = require("./const.js");
 const {
     START_OFFSET,
@@ -36,53 +35,60 @@ const {
     PAGE_NEXT_OFFSET,
     PAGE_PREV_OFFSET,
     CELL_USED_OFFSET,
-} = require("./const.js");
+} = require("./const.js")
 
-
-const winston = require('./winston/config');
-const fileops = require("./fileops.js");
+const winston = require('./winston/config')
+const fileops = require("./fileops.js")
 const tools = require('./tools')
-var fs = require('fs');
+var Page = require('./page.js')
+const _page = new Page() // 默认构造函数
 
 var rootPage = undefined // 根页面 
 const pageMap = {} // 页表
 const fidMap = {}
 
-function newCell(keyBuf = undefined, value = 0) {
-    if (keyBuf == undefined) {
-        keyBuf = Buffer.alloc(KEY_MAX_LEN)
+async function init(dbname) {
+    let exist = await fileops.existFile(dbname)
+    if (!exist) { // 文件不存在则创建
+        await fileops.createFile(dbname)
     }
-    return {
-        key: keyBuf,
-        index: value,
+
+    let fd = await fileops.openFile(dbname)
+    fidMap[dbname] = fd
+    let stat = await fileops.statFile(fd)
+    winston.info("file size = " + stat.size)
+
+    if (stat.size < PAGE_SIZE) { // 空文件, 写入一页
+        rootPage = _page.newPage(NODE_TYPE_ROOT)    // 新生成一个根页面
+        rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
+        //rootPage.next = 0        // rootPage的prev和next指向自己，用于空闲链表
+        //rootPage.prev = 0
+        pageMap[0] = rootPage
+        let buff = _page.pageToBuff(rootPage)
+        let ret = await fileops.writeFile(fd, buff, 0, PAGE_SIZE)
+        console.log("file write ret = " + ret)
+        await fileops.syncFile(fd)
+        return fd
     }
+
+    let buff = Buffer.alloc(PAGE_SIZE)
+    let bytes = await fileops.readFile(fd, buff, START_OFFSET, PAGE_SIZE, 0) // 文件第一页，始终放置root页
+    rootPage = _page.buffToPage(buff)
+    rootPage.index = 0
+    pageMap[0] = rootPage
+    for (var index = PAGE_SIZE; index < stat.size; index += PAGE_SIZE) {
+        let bytes = await fileops.readFile(fd, buff, START_OFFSET, PAGE_SIZE, index) // 非root页
+        let pageNode = _page.buffToPage(buff)
+        let pageIndex = Math.floor(index / PAGE_SIZE)
+        pageNode.index = pageIndex
+        pageMap[pageIndex] = pageNode
+    }
+
+    return fd
 }
 
-function parseCell(buf) {
-    var key = Buffer.alloc(KEY_MAX_LEN)
-    buf.copy(key, 0, 0, KEY_MAX_LEN)
-    var index = buf.readInt32LE(KEY_MAX_LEN)
-    return {
-        key: key,
-        index: index,
-    }
-}
-
-function newPage(type) {
-    var cells = []
-    for (var index = 0; index < ORDER_NUM; index++) {
-        var cell = newCell()
-        cells.push(cell)
-    }
-
-    return {
-        type: type,        // 页类型：2 ~ 根, 1 ~ 中间节点, 0 ~ 叶子节点
-        parent: -1,         // 父节点
-        next: -1,           // 兄节点
-        prev: -1,           // 弟节点 
-        used: 0,
-        cells: cells,
-    }
+async function close(dbname) {
+    await fileops.closeFile(fidMap[dbname])
 }
 
 /*
@@ -92,13 +98,13 @@ function newPage(type) {
  *    @left: 左节点
  *    @right: 右节点
  */
-function rebuildRootPage(page, left, right) {
+function rebuildRoot(page, left, right) {
     for (var index = 0; index < ORDER_NUM - 2; index++) {
-        var cell = newCell()
+        var cell = _page.newCell()
         page.cells[index] = cell
     }
-    page.cells[ORDER_NUM - 2] = newCell(left.cells[ORDER_NUM - 1].key, left.index)
-    page.cells[ORDER_NUM - 1] = newCell(right.cells[ORDER_NUM - 1].key, right.index)
+    page.cells[ORDER_NUM - 2] = _page.newCell(left.cells[ORDER_NUM - 1].key, left.index)
+    page.cells[ORDER_NUM - 1] = _page.newCell(right.cells[ORDER_NUM - 1].key, right.index)
     page.prev = -1
     page.used = 2 // 左右两个子节点
 
@@ -113,109 +119,6 @@ function rebuildRootPage(page, left, right) {
         pageMap[childIndex].parent = right.index
     }
 
-}
-
-function copyPage(target, source) {
-    target.type = source.type
-    target.parent = source.parent
-    target.next = source.next
-    target.prev = source.prev
-    target.used = source.used
-
-    for (var index = 0; index < ORDER_NUM; index++) {
-        target.cells[index] = source.cells[index]
-    }
-}
-
-function pageToBuff(page) {
-    let buff = Buffer.alloc(PAGE_SIZE)
-    buff.writeInt32LE(page.type, PAGE_TYPE_OFFSET)
-    buff.writeInt32LE(page.parent, PAGE_PARENT_OFFSET)
-    buff.writeInt32LE(page.next, PAGE_NEXT_OFFSET)
-    buff.writeInt32LE(page.prev, PAGE_PREV_OFFSET)
-    buff.writeInt32LE(page.used, CELL_USED_OFFSET)
-    var cellStart = CELL_OFFSET
-    var cellLength = CELL_LEN
-
-    // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
-    var cells = page.cells
-    for (var ci = 0; ci < ORDER_NUM; ci++) {
-        cells[ci].key.copy(buff, cellStart + ci * cellLength, 0, KEY_MAX_LEN) // 键值
-        buff.writeInt32LE(cells[ci].index, cellStart + ci * cellLength + KEY_MAX_LEN) // 子节点索引值
-    }
-
-    return buff
-}
-
-function buffToPage(buf) {
-    var type = buf.readInt32LE(PAGE_TYPE_OFFSET)
-    var parent = buf.readInt32LE(PAGE_PARENT_OFFSET)
-    var next = buf.readInt32LE(PAGE_NEXT_OFFSET)
-    var prev = buf.readInt32LE(PAGE_PREV_OFFSET)
-    var used = buf.readInt32LE(CELL_USED_OFFSET) // 已经使用的cell
-    var cellStart = CELL_OFFSET
-    var cellLength = CELL_LEN
-
-    var cells = []
-    for (var index = 0; index < ORDER_NUM; index++) {
-        var cellBuff = Buffer.alloc(CELL_LEN)
-        buf.copy(cellBuff, 0, cellStart + index * cellLength, cellStart + (index + 1) * cellLength)
-        var cell = parseCell(cellBuff)
-        cells.push(cell)
-    }
-
-    return {
-        type: type,
-        parent: parent,
-        next: next,
-        prev: prev,
-        used: used,
-        cells: cells
-    }
-}
-
-async function init(dbname) {
-    let exist = await fileops.existFile(dbname)
-    if (!exist) { // 文件不存在则创建
-        await fileops.createFile(dbname)
-    }
-
-    let fd = await fileops.openFile(dbname)
-    fidMap[dbname] = fd
-    let stat = await fileops.statFile(fd)
-    winston.info("file size = " + stat.size)
-
-    if (stat.size < PAGE_SIZE) { // 空文件, 写入一页
-        rootPage = newPage(NODE_TYPE_ROOT)    // 新生成一个根页面
-        rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
-        rootPage.next = 0        // rootPage的prev和next指向自己，用于
-        rootPage.prev = 0
-        pageMap[0] = rootPage
-        let buff = pageToBuff(rootPage)
-        let ret = await fileops.writeFile(fd, buff, 0, PAGE_SIZE)
-        console.log("file write ret = " + ret)
-        await fileops.syncFile(fd)
-        return fd
-    }
-
-    let buff = Buffer.alloc(PAGE_SIZE)
-    let bytes = await fileops.readFile(fd, buff, START_OFFSET, PAGE_SIZE, 0) // 文件第一页，始终放置root页
-    rootPage = buffToPage(buff)
-    rootPage.index = 0
-    pageMap[0] = rootPage
-    for (var index = PAGE_SIZE; index < stat.size; index += PAGE_SIZE) {
-        let bytes = await fileops.readFile(fd, buff, START_OFFSET, PAGE_SIZE, index) // 非root页
-        let pageNode = buffToPage(buff)
-        let pageIndex = Math.floor(index / PAGE_SIZE)
-        pageNode.index = pageIndex
-        pageMap[pageIndex] = pageNode
-    }
-
-    return fd
-}
-
-async function close(dbname) {
-    await fileops.closeFile(fidMap[dbname])
 }
 
 /*
@@ -243,7 +146,7 @@ function locateLeaf(key, currPage) {
     if (!found) {
         if (pageIndex == 0) { // 说明还没有分配叶子值
             let pageNum = Object.getOwnPropertyNames(pageMap).length
-            let page = newPage(NODE_TYPE_LEAF) // 生成叶子节点
+            let page = _page.newPage(NODE_TYPE_LEAF) // 生成叶子节点
             pageMap[pageNum] = page // 插入到缓存表
             page.parent = currPage.index // 父页节点下标
             page.index = pageNum
@@ -288,14 +191,14 @@ function innerInsert(targetPage, key, value) {
     // 插入
     targetPage.dirty = true
     let pos = findInsertPos(key, targetPage)
-    targetPage.cells.splice(pos, 0, newCell(key, value)) //  插入：splice(pos, <delete num> , value)
+    targetPage.cells.splice(pos, 0, _page.newCell(key, value)) //  插入：splice(pos, <delete num> , value)
     targetPage.used++
     if (targetPage.used <= ORDER_NUM) {
         targetPage.cells.shift() // remove left 
     }
 
     if (targetPage.used == ORDER_NUM + 1) { // 若插入后, 节点包含关键字数大于阶数, 则分裂
-        let brotherPage = newPage()    // 左边的兄弟页
+        let brotherPage = _page.newPage()    // 左边的兄弟页
         let pageIndex = maxIndex()
         pageMap[pageIndex] = brotherPage
         brotherPage.index = pageIndex // 设置页下标
@@ -321,17 +224,17 @@ function innerInsert(targetPage, key, value) {
                 let childIndex = targetPage.cells[i].index
                 pageMap[childIndex].parent = brotherPage.index // 更新子节点的父节点索引
             }
-            targetPage.cells[i] = newCell()
+            targetPage.cells[i] = _page.newCell()
         }
 
         targetPage.used = ORDER_NUM + 1 - MORE_HALF_NUM
         targetPage.cells.shift() // 补充，把左侧多余的一个删除
 
         if (targetPage.type == NODE_TYPE_ROOT) { // 如果分裂了root节点
-            let movePage = newPage(NODE_TYPE_STEM) // 把rootPage拷贝到movePage里面
+            let movePage = _page.newPage(NODE_TYPE_STEM) // 把rootPage拷贝到movePage里面
             let moveIndex = maxIndex()
             pageMap[moveIndex] = movePage
-            copyPage(movePage, targetPage)
+            _page.copyPage(movePage, targetPage)
             movePage.type = NODE_TYPE_STEM // 降为茎节点
             movePage.index = moveIndex
             movePage.parent = 0 // 父节点为根节点
@@ -346,7 +249,7 @@ function innerInsert(targetPage, key, value) {
             }
 
             brotherPage.dirty = true
-            rebuildRootPage(targetPage, brotherPage, movePage) // 设置根节点的cell
+            rebuildRoot(targetPage, brotherPage, movePage) // 设置根节点的cell
             return
         }
 
@@ -498,13 +401,13 @@ function merge(from, to) {
         }
     }
 
-    // 3. from page变成空页，需要用过空闲页链表串起来
-    let firstFreeIndex = rootPage.next
-    let firstFreePage = pageMap[firstFreeIndex]
-    rootPage.next = from.index
-    from.next = firstFreeIndex
-    from.prev = firstFreePage.prev
-    firstFreePage.prev = from.index
+    // // 3. from page变成空页，需要用过空闲页链表串起来
+    // let firstFreeIndex = rootPage.next
+    // let firstFreePage = pageMap[firstFreeIndex]
+    // rootPage.next = from.index
+    // from.next = firstFreeIndex
+    // from.prev = firstFreePage.prev
+    // firstFreePage.prev = from.index
 
     // 4. 从父节点中把对应的kv值删除, 递归判断是否需要对父节点进行借用或者合并
     let parent = pageMap[from.parent]
@@ -513,7 +416,7 @@ function merge(from, to) {
             parent.dirty = true
             parent.cells.splice(i, 1)
             parent.used--
-            let cell = newCell()
+            let cell = _page.newCell()
             parent.cells.splice(0, 0, cell) // 则需要从左侧补充一个
 
             if (parent.used < MORE_HALF_NUM) { // 判断是否需要对parent进行借用或者合并
@@ -543,7 +446,7 @@ function borrow(to, from) {
     if (from.index == to.prev) { // 向弟节点borrow
         beMov = from.cells[ORDER_NUM - 1] // 需要移动的cell
         from.cells.splice(ORDER_NUM - 1, 1) // 删除from的最大值
-        let cell = newCell()
+        let cell = _page.newCell()
         from.cells.splice(0, 0, cell) // 从左侧补充一个
         from.used--
 
@@ -562,7 +465,7 @@ function borrow(to, from) {
     if (from.index == to.next) { // 向兄节点borrow
         beMov = from.cells[ORDER_NUM - from.used] // 需要移动的cell
         from.cells.splice(ORDER_NUM - from.used, 1) // 删除from的最小值
-        let cell = newCell()
+        let cell = _page.newCell()
         from.cells.splice(0, 0, cell) // 从左侧补充一个
         from.used--
 
@@ -614,7 +517,7 @@ function remove(kbuf) {
     targetPage.cells.splice(cellIndex, 1) // 删除从cellIndex下标开始的1个元素
     targetPage.used-- // 减去使用的个数
     if (targetPage.cells.length < ORDER_NUM) { // 删除使数据槽位变少
-        let cell = newCell()
+        let cell = _page.newCell()
         targetPage.cells.splice(0, 0, cell) // 则需要从左侧补充一个
     }
 
@@ -645,7 +548,7 @@ async function flush(fd) {
     for (var index = 0; index < pageNum; index++) {
         var page = pageMap[index]
         if (page.dirty == true) {
-            var buff = pageToBuff(page)
+            var buff = _page.pageToBuff(page)
             fileops.writeFile(fd, buff, 0, PAGE_SIZE, index * PAGE_SIZE)
         }
     }
