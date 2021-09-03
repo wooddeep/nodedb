@@ -1,8 +1,11 @@
-const bptree = require("./bptree.js");
+const winston = require('./winston/config');
+const Bptree = require("./bptree.js");
 const fileops = require("./fileops.js");
 const constant = require("./const.js");
-const winston = require('./winston/config');
+
 const tools = require('./tools')
+
+const bptree = new Bptree()
 
 async function fileOperTest() {
     let fd = await fileops.openFile("lee.db")

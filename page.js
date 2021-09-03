@@ -130,9 +130,8 @@ class Page {
             cells: cells
         }
     }
-
 }
 
 // 静态变量
-Page.para = 'Allen';
+Page.para = 'lee';
 module.exports = Page;
