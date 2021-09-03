@@ -21,17 +21,21 @@
 
 //const { PAGE_PARENT_IDX_LEN, PAGE_PREV_IDX_LEN, PAGE_NEXT_IDX_LEN } = require("./const.js");
 const {
-    OFFSET_START,
+    START_OFFSET,
     KEY_MAX_LEN,
     PAGE_SIZE,
     ORDER_NUM,
     CELL_LEN,
-    CELL_START,
-    LESS_HALF_NUM,
+    CELL_OFFSET,
     MORE_HALF_NUM,
     NODE_TYPE_LEAF,
     NODE_TYPE_STEM,
     NODE_TYPE_ROOT,
+    PAGE_TYPE_OFFSET,
+    PAGE_PARENT_OFFSET,
+    PAGE_NEXT_OFFSET,
+    PAGE_PREV_OFFSET,
+    CELL_USED_OFFSET,
 } = require("./const.js");
 
 
@@ -125,12 +129,12 @@ function copyPage(target, source) {
 
 function pageToBuff(page) {
     let buff = Buffer.alloc(PAGE_SIZE)
-    buff.writeInt32LE(page.type, 0)
-    buff.writeInt32LE(page.parent, 4)
-    buff.writeInt32LE(page.next, 8)
-    buff.writeInt32LE(page.prev, 12)
-    buff.writeInt32LE(page.used, 16)
-    var cellStart = CELL_START
+    buff.writeInt32LE(page.type, PAGE_TYPE_OFFSET)
+    buff.writeInt32LE(page.parent, PAGE_PARENT_OFFSET)
+    buff.writeInt32LE(page.next, PAGE_NEXT_OFFSET)
+    buff.writeInt32LE(page.prev, PAGE_PREV_OFFSET)
+    buff.writeInt32LE(page.used, CELL_USED_OFFSET)
+    var cellStart = CELL_OFFSET
     var cellLength = CELL_LEN
 
     // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
@@ -144,12 +148,12 @@ function pageToBuff(page) {
 }
 
 function buffToPage(buf) {
-    var type = buf.readInt32LE(0)
-    var parent = buf.readInt32LE(4)
-    var next = buf.readInt32LE(8)
-    var prev = buf.readInt32LE(12)
-    var used = buf.readInt32LE(16) // 已经使用的cell
-    var cellStart = CELL_START
+    var type = buf.readInt32LE(PAGE_TYPE_OFFSET)
+    var parent = buf.readInt32LE(PAGE_PARENT_OFFSET)
+    var next = buf.readInt32LE(PAGE_NEXT_OFFSET)
+    var prev = buf.readInt32LE(PAGE_PREV_OFFSET)
+    var used = buf.readInt32LE(CELL_USED_OFFSET) // 已经使用的cell
+    var cellStart = CELL_OFFSET
     var cellLength = CELL_LEN
 
     var cells = []
@@ -195,12 +199,12 @@ async function init(dbname) {
     }
 
     let buff = Buffer.alloc(PAGE_SIZE)
-    let bytes = await fileops.readFile(fd, buff, OFFSET_START, PAGE_SIZE, 0) // 文件第一页，始终放置root页
+    let bytes = await fileops.readFile(fd, buff, START_OFFSET, PAGE_SIZE, 0) // 文件第一页，始终放置root页
     rootPage = buffToPage(buff)
     rootPage.index = 0
     pageMap[0] = rootPage
     for (var index = PAGE_SIZE; index < stat.size; index += PAGE_SIZE) {
-        let bytes = await fileops.readFile(fd, buff, OFFSET_START, PAGE_SIZE, index) // 非root页
+        let bytes = await fileops.readFile(fd, buff, START_OFFSET, PAGE_SIZE, index) // 非root页
         let pageNode = buffToPage(buff)
         let pageIndex = Math.floor(index / PAGE_SIZE)
         pageNode.index = pageIndex
