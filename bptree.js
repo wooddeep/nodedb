@@ -182,7 +182,7 @@ async function init(dbname) {
     winston.info("file size = " + stat.size)
 
     if (stat.size < PAGE_SIZE) { // 空文件, 写入一页
-        rootPage = newPage(2)    // 新生成一个根页面
+        rootPage = newPage(NODE_TYPE_ROOT)    // 新生成一个根页面
         rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
         rootPage.next = 0        // rootPage的prev和next指向自己，用于
         rootPage.prev = 0
@@ -221,7 +221,7 @@ function locateLeaf(key, currPage) {
     let cells = currPage.cells
     let maxIndex = cells.length - 1
 
-    if (currPage.type == 0) {
+    if (currPage.type == NODE_TYPE_LEAF) {
         return currPage
     }
 
@@ -239,7 +239,7 @@ function locateLeaf(key, currPage) {
     if (!found) {
         if (pageIndex == 0) { // 说明还没有分配叶子值
             let pageNum = Object.getOwnPropertyNames(pageMap).length
-            let page = newPage(0) // 生成叶子节点
+            let page = newPage(NODE_TYPE_LEAF) // 生成叶子节点
             pageMap[pageNum] = page // 插入到缓存表
             page.parent = currPage.index // 父页节点下标
             page.index = pageNum
@@ -313,7 +313,7 @@ function innerInsert(targetPage, key, value) {
         brotherPage.used = MORE_HALF_NUM
         for (var i = MORE_HALF_NUM - 1; i >= 0; i--) {
             brotherPage.cells[(ORDER_NUM - 1) - (MORE_HALF_NUM - 1 - i)] = targetPage.cells[i]
-            if (brotherPage.type > 0) {
+            if (brotherPage.type > NODE_TYPE_LEAF) {
                 let childIndex = targetPage.cells[i].index
                 pageMap[childIndex].parent = brotherPage.index // 更新子节点的父节点索引
             }
@@ -323,17 +323,17 @@ function innerInsert(targetPage, key, value) {
         targetPage.used = ORDER_NUM + 1 - MORE_HALF_NUM
         targetPage.cells.shift() // 补充，把左侧多余的一个删除
 
-        if (targetPage.type == 2) { // 如果分裂了root节点
-            let movePage = newPage(1) // 把rootPage拷贝到movePage里面
+        if (targetPage.type == NODE_TYPE_ROOT) { // 如果分裂了root节点
+            let movePage = newPage(NODE_TYPE_STEM) // 把rootPage拷贝到movePage里面
             let moveIndex = maxIndex()
             pageMap[moveIndex] = movePage
             copyPage(movePage, targetPage)
-            movePage.type = 1 // 降为茎节点
+            movePage.type = NODE_TYPE_STEM // 降为茎节点
             movePage.index = moveIndex
             movePage.parent = 0 // 父节点为根节点
             movePage.prev = brotherPage.index
             movePage.dirty = true
-            brotherPage.type = 1 // 茎节点
+            brotherPage.type = NODE_TYPE_STEM // 茎节点
             brotherPage.parent = 0
             brotherPage.next = moveIndex
             for (var i = 0; i < movePage.used; i++) {  // move 之后，其子节点的parent需要修改
@@ -364,7 +364,7 @@ function updateMaxToLeaf(page, key) {
     key.copy(page.cells[ORDER_NUM - 1].key, 0, 0, KEY_MAX_LEN)    // TODO ORDER_NUM -> KEY_MAX_LEN
     let childIndex = page.cells[ORDER_NUM - 1].index
     console.log("childIndex = " + childIndex)
-    if (childIndex > 0 && pageMap[childIndex].type > 0) {
+    if (childIndex > 0 && pageMap[childIndex].type > NODE_TYPE_LEAF) {
         updateMaxToLeaf(pageMap[childIndex], key)
     }
 }
