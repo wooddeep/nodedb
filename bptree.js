@@ -14,7 +14,7 @@
 //  +---------------+
 //  +     PREV      +
 //  +---------------+
-//  +     USED      +
+//  +  PCELL | USED +
 //  +---------------+
 //
 
@@ -78,7 +78,7 @@ class Bptree {
         rootPage = _page.buffToPage(buff)
         rootPage.index = 0
         pageMap[0] = rootPage
-        for (var index = PAGE_SIZE; index < stat.size; index += PAGE_SIZE) { // 加载各页
+        for (var index = PAGE_SIZE; index < stat.size; index += PAGE_SIZE) {
             let bytes = await fileops.readFile(fd, buff, START_OFFSET, PAGE_SIZE, index) // 非root页
             let pageNode = _page.buffToPage(buff)
             let pageIndex = Math.floor(index / PAGE_SIZE)
@@ -121,9 +121,8 @@ class Bptree {
             pageMap[childIndex].parent = right.index
         }
 
-        _page.setKeyInCell(left, ORDER_NUM - 2)
-        _page.setKeyInCell(right, ORDER_NUM - 1)
-
+        left.pcell = ORDER_NUM - 2
+        right.pcell = ORDER_NUM - 1
     }
 
     /*
@@ -148,7 +147,7 @@ class Bptree {
             pageIndex = cells[0].index
             cellIndex = 0
         }
-        if (!found) { // 键值大于最大值，或小于最小值
+        if (!found) {
             if (pageIndex == 0) { // 说明还没有分配叶子值
                 let pageNum = Object.getOwnPropertyNames(pageMap).length
                 let page = _page.newPage(NODE_TYPE_LEAF) // 生成叶子节点
@@ -156,6 +155,7 @@ class Bptree {
                 page.parent = currPage.index // 父页节点下标
                 page.index = pageNum
                 page.dirty = true
+                page.pcell = cellIndex
                 cells[cellIndex].index = pageNum
                 currPage.dirty = true
                 currPage.used++
@@ -165,7 +165,7 @@ class Bptree {
             }
         }
 
-        for (var index = maxIndex; index >= 1; index--) { // TODO: 折半查找法, 找到键值合适的位置
+        for (var index = maxIndex; index >= 1; index--) { // TODO: 折半查找法
             if (key.compare(cells[index].key) <= 0 && key.compare(cells[index - 1].key) > 0) { // 查找到
                 let page = pageMap[cells[index].index]
                 return this.locateLeaf(key, page)
@@ -191,12 +191,19 @@ class Bptree {
         return pageNum
     }
 
+    /*
+     * 如果targetPage的type为叶节点，则value代表具体值，如果type非叶子节点，则value则为子节点索引
+     */
     innerInsert(targetPage, key, value) {
         // 插入
         targetPage.dirty = true
-        let pos = this.findInsertPos(key, targetPage) 
-        targetPage.cells.splice(pos, 0, _page.newCell(key, value)) //  插入：splice(pos, <delete num> , value)
+        let pos = this.findInsertPos(key, targetPage)
+        if (targetPage.type > NODE_TYPE_LEAF) {
+            pageMap[value].pcell = pos
+            pageMap[value].dirty = true
+        }
 
+        targetPage.cells.splice(pos, 0, _page.newCell(key, value)) //  插入：splice(pos, <delete num> , value)
         targetPage.used++
         if (targetPage.used <= ORDER_NUM) {
             targetPage.cells.shift() // remove left 
@@ -224,14 +231,12 @@ class Bptree {
             // 1. 把原来的页的cells的前半部分挪入新页的cells, 清除原来页的cells的前半部分
             brotherPage.used = MORE_HALF_NUM
             for (var i = MORE_HALF_NUM - 1; i >= 0; i--) {
-                let cellIndex = (ORDER_NUM - 1) - (MORE_HALF_NUM - 1 - i)
-                brotherPage.cells[cellIndex] = targetPage.cells[i]
-                //brotherPage.cells[cellIndex].keyIdx = cellIndex
+                brotherPage.cells[(ORDER_NUM - 1) - (MORE_HALF_NUM - 1 - i)] = targetPage.cells[i]
                 if (brotherPage.type > NODE_TYPE_LEAF) {
                     let childIndex = targetPage.cells[i].index
                     pageMap[childIndex].parent = brotherPage.index // 更新子节点的父节点索引
                 }
-                targetPage.cells[i] = _page.newCell() // 把原来的cell清空
+                targetPage.cells[i] = _page.newCell()
             }
 
             targetPage.used = ORDER_NUM + 1 - MORE_HALF_NUM
@@ -394,7 +399,7 @@ class Bptree {
             // 更新to页面的最大值
             let now = to.cells[ORDER_NUM - 1].key
             let ppage = pageMap[to.parent]
-            if (now.compare(old) != 0) { // 值不一样则更新 // TODO, 不要通过值对比找到父节点的kv值，通过下标获取
+            if (now.compare(old) != 0) { // 值不一样则更新
                 this.updateMaxToRoot(ppage, old, now)
             }
         }
@@ -419,7 +424,7 @@ class Bptree {
         // 4. 从父节点中把对应的kv值删除, 递归判断是否需要对父节点进行借用或者合并
         let parent = pageMap[from.parent]
         for (var i = ORDER_NUM - parent.used; i < ORDER_NUM; i++) {
-            if (parent.cells[i].key.compare(beDel.key) == 0) { // TODO 遇到k值相同的情况下，出现问题
+            if (parent.cells[i].key.compare(beDel.key) == 0) {
                 parent.dirty = true
                 parent.cells.splice(i, 1)
                 parent.used--
