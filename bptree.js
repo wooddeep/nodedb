@@ -197,7 +197,7 @@ class Bptree {
     innerInsert(targetPage, key, value) {
         // 插入
         targetPage.dirty = true
-        let pos = this.findInsertPos(key, targetPage)
+        let pos = this.findInsertPos(key, targetPage) // 找到插入的cell槽位
         if (targetPage.type > NODE_TYPE_LEAF) {
             pageMap[value].pcell = pos
             pageMap[value].dirty = true
@@ -278,6 +278,9 @@ class Bptree {
         return false
     }
 
+    /*
+     * @description: 更新树的最大值，比如是所有节点中的最大值
+     */
     updateMaxToLeaf(page, key) {
         page.dirty = true
         key.copy(page.cells[ORDER_NUM - 1].key, 0, 0, KEY_MAX_LEN)    // TODO ORDER_NUM -> KEY_MAX_LEN
@@ -288,19 +291,22 @@ class Bptree {
         }
     }
 
-    updateMaxToRoot(page, old, now) {
+    /*
+     * @description: 更新子节点的最大值到父节点，该值不一定是父节点的最大值
+     * @Parameter:
+     *   page: 父页面; pcell: 子页面中，存的父页面的pcell
+     */
+    updateMaxToRoot(page, pcell, old, now) {
         page.dirty = true
 
         let upParent = false
-        for (var i = 0; i < ORDER_NUM; i++) {
-            if (page.cells[i].key.compare(old) == 0) { // 替换
-                now.copy(page.cells[i].key, 0, 0, KEY_MAX_LEN)  // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
-                upParent = true
-            }
+        if (page.cells[pcell].key.compare(old) == 0) { // 替换
+            now.copy(page.cells[pcell].key, 0, 0, KEY_MAX_LEN)  // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
+            upParent = true
         }
 
         if (upParent) {
-            this.updateMaxToRoot(pageMap[page.parent], old, now)
+            this.updateMaxToRoot(pageMap[page.parent], page.pcell, old, now)
         }
 
     }
@@ -400,7 +406,18 @@ class Bptree {
             let now = to.cells[ORDER_NUM - 1].key
             let ppage = pageMap[to.parent]
             if (now.compare(old) != 0) { // 值不一样则更新
-                this.updateMaxToRoot(ppage, old, now)
+                this.updateMaxToRoot(ppage, to.pcell, old, now)
+            }
+        }
+
+        // 更新to节点所有kv的pcell
+        if (to.type > NODE_TYPE_LEAF) {
+            for (var i = 0; i < to.used; i++) {
+                let cellIndex = ORDER_NUM - 1 - i
+                let childIndex = to.cells[cellIndex].index
+                let childPage = pageMap[childIndex]
+                childPage.pcell = cellIndex // 重新设置pcell
+                childPage.dirty = true
             }
         }
 
@@ -429,6 +446,16 @@ class Bptree {
         parent.used--
         let cell = _page.newCell()
         parent.cells.splice(0, 0, cell) // 则需要从左侧补充一个
+
+        // 更新parent的kv的pcell
+        for (var i = 0; i < parent.used; i++) {
+            let cellIndex = ORDER_NUM - 1 - i
+            let childIndex = parent.cells[cellIndex].index
+            let childPage = pageMap[childIndex]
+            childPage.pcell = cellIndex // 重新设置pcell
+            childPage.dirty = true
+        }
+
         if (parent.used < MORE_HALF_NUM) { // 判断是否需要对parent进行借用或者合并
             let ret = this.mergeOrBorrow(parent)
             if (ret.method == "merge") {
@@ -462,7 +489,7 @@ class Bptree {
             let now = from.cells[ORDER_NUM - 1].key
             let ppage = pageMap[from.parent]
             if (now.compare(old) != 0) { // 值不一样则更新
-                this.updateMaxToRoot(ppage, old, now)
+                this.updateMaxToRoot(ppage, from.pcell, old, now)
             }
 
             to.cells.splice(ORDER_NUM - 1 - to.used, 1, beMov) // 移动到to页面中, 作为to页面的最小值，并替换原来的空值
@@ -481,12 +508,23 @@ class Bptree {
             let old = from.cells[ORDER_NUM - 1].key
             let ppage = pageMap[to.parent]
             if (now.compare(old) != 0) { // 值不一样则更新
-                this.updateMaxToRoot(ppage, old, now)
+                this.updateMaxToRoot(ppage, to.pcell, old, now)
             }
 
             to.cells.splice(ORDER_NUM, 0, beMov) // 移动到to页面中, 作为to页面的最大值
             to.cells.shift()
             to.used++
+        }
+
+        // 更新所有kv的pcell
+        if (to.type > NODE_TYPE_LEAF) {
+            for (var i = 0; i < to.used; i++) {
+                let cellIndex = ORDER_NUM - 1 - i
+                let childIndex = to.cells[cellIndex].index
+                let childPage = pageMap[childIndex]
+                childPage.pcell = cellIndex // 重新设置pcell
+                childPage.dirty = true
+            }
         }
 
         // 2. 把from页面子节点的父节点索引替换成to页面的索引
@@ -533,7 +571,7 @@ class Bptree {
             let now = targetPage.cells[ORDER_NUM - 1].key
             let ppage = pageMap[targetPage.parent]
             if (now.compare(old) != 0) { // 值不一样则更新
-                this.updateMaxToRoot(ppage, old, now)
+                this.updateMaxToRoot(ppage, targetPage.pcell, old, now)
             }
         }
 
