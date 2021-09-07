@@ -113,7 +113,7 @@ class Page {
         var parent = buf.readInt32LE(PAGE_PARENT_OFFSET)
         var next = buf.readInt32LE(PAGE_NEXT_OFFSET)
         var prev = buf.readInt32LE(PAGE_PREV_OFFSET)
-        var pcell = buf.readInt32LE(PARENT_CELL_OFFSET)
+        var pcell = buf.readInt16LE(PARENT_CELL_OFFSET)
         var used = buf.readInt16LE(CELL_USED_OFFSET) // 已经使用的cell
         var cellStart = CELL_OFFSET
         var cellLength = CELL_LEN
