@@ -20,7 +20,7 @@ async function fileOperTest() {
 async function writeTest() {
     let dbname = "test.db"
     let fd = await bptree.init(dbname)
-    for (var value = 100; value >= 93; value--) {
+    for (var value = 100; value >= 80; value--) {
         let kbuf = tools.buffer(value)
         await bptree.insert(kbuf, value)
     }
@@ -48,8 +48,8 @@ async function removeTest(key) {
     await bptree.flush(fd)
 }
 
-writeTest()
+//writeTest()
 
 //findTest(80)
 
-//removeTest(82)
+removeTest(85)

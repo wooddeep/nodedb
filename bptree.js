@@ -193,6 +193,16 @@ class Bptree {
         return pageNum
     }
 
+    setChildPcell(parent) {
+        for (var i = 0; i < parent.used; i++) {
+            let cellIndex = ORDER_NUM - 1 - i
+            let childIndex = parent.cells[cellIndex].index
+            let childPage = pageMap[childIndex]
+            childPage.pcell = cellIndex // 重新设置pcell
+            childPage.dirty = true
+        }
+    }
+
     /*
      * 如果targetPage的type为叶节点，则value代表具体值，如果type非叶子节点，则value则为子节点索引
      */
@@ -266,43 +276,19 @@ class Bptree {
 
             // 3. 重建brother pcell
             if (brotherPage.type > NODE_TYPE_LEAF) {
-                for (var i = 0; i < brotherPage.used; i++) {
-                    let cellIndex = ORDER_NUM - 1 - i
-                    let childIndex = brotherPage.cells[cellIndex].index
-                    let childPage = pageMap[childIndex]
-                    childPage.pcell = cellIndex // 重新设置pcell
-                    childPage.dirty = true
-                }
+                setChildPcell(brotherPage)
             } else {
                 let parent = pageMap[brotherPage.parent]
-                for (var i = 0; i < parent.used; i++) {
-                    let cellIndex = ORDER_NUM - 1 - i
-                    let childIndex = parent.cells[cellIndex].index
-                    let childPage = pageMap[childIndex]
-                    childPage.pcell = cellIndex // 重新设置pcell
-                    childPage.dirty = true
-                }
+                setChildPcell(parent)
             }
         }
 
         // 4. 重建target pcell
         if (targetPage.type > NODE_TYPE_LEAF) {
-            for (var i = 0; i < targetPage.used; i++) {
-                let cellIndex = ORDER_NUM - 1 - i
-                let childIndex = targetPage.cells[cellIndex].index
-                let childPage = pageMap[childIndex]
-                childPage.pcell = cellIndex // 重新设置pcell
-                childPage.dirty = true
-            }
+            setChildPcell(targetPage)
         } else {
             let parent = pageMap[targetPage.parent]
-            for (var i = 0; i < parent.used; i++) {
-                let cellIndex = ORDER_NUM - 1 - i
-                let childIndex = parent.cells[cellIndex].index
-                let childPage = pageMap[childIndex]
-                childPage.pcell = cellIndex // 重新设置pcell
-                childPage.dirty = true
-            }
+            setChildPcell(parent)
         }
 
     }
@@ -448,13 +434,7 @@ class Bptree {
 
         // 更新to节点所有kv的pcell
         if (to.type > NODE_TYPE_LEAF) {
-            for (var i = 0; i < to.used; i++) {
-                let cellIndex = ORDER_NUM - 1 - i
-                let childIndex = to.cells[cellIndex].index
-                let childPage = pageMap[childIndex]
-                childPage.pcell = cellIndex // 重新设置pcell
-                childPage.dirty = true
-            }
+            setChildPcell(to)
         }
 
         // 2. 把from页面子节点的父节点索引替换成to页面的索引
@@ -483,14 +463,8 @@ class Bptree {
         let cell = _page.newCell()
         parent.cells.splice(0, 0, cell) // 则需要从左侧补充一个
 
-        // 更新parent的kv的pcell
-        for (var i = 0; i < parent.used; i++) {
-            let cellIndex = ORDER_NUM - 1 - i
-            let childIndex = parent.cells[cellIndex].index
-            let childPage = pageMap[childIndex]
-            childPage.pcell = cellIndex // 重新设置pcell
-            childPage.dirty = true
-        }
+        // 更新parent对应child的kv的pcell
+        setChildPcell(parent)
 
         if (parent.used < MORE_HALF_NUM) { // 判断是否需要对parent进行借用或者合并
             let ret = this.mergeOrBorrow(parent)
@@ -554,13 +528,7 @@ class Bptree {
 
         // 更新所有kv的pcell
         if (to.type > NODE_TYPE_LEAF) {
-            for (var i = 0; i < to.used; i++) {
-                let cellIndex = ORDER_NUM - 1 - i
-                let childIndex = to.cells[cellIndex].index
-                let childPage = pageMap[childIndex]
-                childPage.pcell = cellIndex // 重新设置pcell
-                childPage.dirty = true
-            }
+            setChildPcell(to)
         }
 
         // 2. 把from页面子节点的父节点索引替换成to页面的索引
@@ -637,18 +605,5 @@ class Bptree {
     }
 
 }
-
-// var bptree = {
-//     init: init,
-//     close: close,
-//     insert: insert,
-//     flush: flush,
-//     select: select,
-//     remove: remove,
-//     rootPage: rootPage,
-//     pageMap: pageMap,
-// }
-
-// module.exports = bptree;
 
 module.exports = Bptree;
