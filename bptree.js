@@ -123,6 +123,8 @@ class Bptree {
 
         left.pcell = ORDER_NUM - 2
         right.pcell = ORDER_NUM - 1
+        left.dirty = true
+        right.dirty = true
     }
 
     /*
@@ -198,17 +200,12 @@ class Bptree {
         // 插入
         targetPage.dirty = true
         let pos = this.findInsertPos(key, targetPage) // 找到插入的cell槽位
-        if (targetPage.type > NODE_TYPE_LEAF) {
-            pageMap[value].pcell = pos
-            pageMap[value].dirty = true
-        }
-
         targetPage.cells.splice(pos, 0, _page.newCell(key, value)) //  插入：splice(pos, <delete num> , value)
         targetPage.used++
         if (targetPage.used <= ORDER_NUM) {
             targetPage.cells.shift() // remove left 
         }
-
+        
         if (targetPage.used == ORDER_NUM + 1) { // 若插入后, 节点包含关键字数大于阶数, 则分裂
             let brotherPage = _page.newPage()    // 左边的兄弟页
             let pageIndex = this.maxIndex()
@@ -264,11 +261,50 @@ class Bptree {
                 this.rebuildRoot(targetPage, brotherPage, movePage) // 设置根节点的cell
                 return
             }
-
             // 2. 新页的键值和页号(index)插入到父节点
             this.innerInsert(pageMap[brotherPage.parent], brotherPage.cells[ORDER_NUM - 1].key, brotherPage.index)
 
+            // 3. 重建brother pcell
+            if (brotherPage.type > NODE_TYPE_LEAF) {
+                for (var i = 0; i < brotherPage.used; i++) {
+                    let cellIndex = ORDER_NUM - 1 - i
+                    let childIndex = brotherPage.cells[cellIndex].index
+                    let childPage = pageMap[childIndex]
+                    childPage.pcell = cellIndex // 重新设置pcell
+                    childPage.dirty = true
+                }
+            } else {
+                let parent = pageMap[brotherPage.parent]
+                for (var i = 0; i < parent.used; i++) {
+                    let cellIndex = ORDER_NUM - 1 - i
+                    let childIndex = parent.cells[cellIndex].index
+                    let childPage = pageMap[childIndex]
+                    childPage.pcell = cellIndex // 重新设置pcell
+                    childPage.dirty = true
+                }
+            }
         }
+
+        // 4. 重建target pcell
+        if (targetPage.type > NODE_TYPE_LEAF) {
+            for (var i = 0; i < targetPage.used; i++) {
+                let cellIndex = ORDER_NUM - 1 - i
+                let childIndex = targetPage.cells[cellIndex].index
+                let childPage = pageMap[childIndex]
+                childPage.pcell = cellIndex // 重新设置pcell
+                childPage.dirty = true
+            }
+        } else {
+            let parent = pageMap[targetPage.parent]
+            for (var i = 0; i < parent.used; i++) {
+                let cellIndex = ORDER_NUM - 1 - i
+                let childIndex = parent.cells[cellIndex].index
+                let childPage = pageMap[childIndex]
+                childPage.pcell = cellIndex // 重新设置pcell
+                childPage.dirty = true
+            }
+        }
+
     }
 
     needUpdateMax(key) {
