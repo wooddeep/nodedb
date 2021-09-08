@@ -144,7 +144,7 @@ class Bptree {
             pageIndex = cells[maxIndex].index
             cellIndex = maxIndex
         }
-        if (key.compare(cells[0].key) < 0) { //  小于最小键值
+        if (key.compare(cells[0].key) <= 0) { //  小于最小键值
             found = false
             pageIndex = cells[0].index
             cellIndex = 0
