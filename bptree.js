@@ -276,19 +276,19 @@ class Bptree {
 
             // 3. 重建brother pcell
             if (brotherPage.type > NODE_TYPE_LEAF) {
-                setChildPcell(brotherPage)
+                this.setChildPcell(brotherPage)
             } else {
                 let parent = pageMap[brotherPage.parent]
-                setChildPcell(parent)
+                this.setChildPcell(parent)
             }
         }
 
         // 4. 重建target pcell
         if (targetPage.type > NODE_TYPE_LEAF) {
-            setChildPcell(targetPage)
+            this.setChildPcell(targetPage)
         } else {
             let parent = pageMap[targetPage.parent]
-            setChildPcell(parent)
+            this.setChildPcell(parent)
         }
 
     }
@@ -434,7 +434,7 @@ class Bptree {
 
         // 更新to节点所有kv的pcell
         if (to.type > NODE_TYPE_LEAF) {
-            setChildPcell(to)
+            this.setChildPcell(to)
         }
 
         // 2. 把from页面子节点的父节点索引替换成to页面的索引
@@ -464,7 +464,7 @@ class Bptree {
         parent.cells.splice(0, 0, cell) // 则需要从左侧补充一个
 
         // 更新parent对应child的kv的pcell
-        setChildPcell(parent)
+        this.setChildPcell(parent)
 
         if (parent.used < MORE_HALF_NUM) { // 判断是否需要对parent进行借用或者合并
             let ret = this.mergeOrBorrow(parent)
@@ -528,7 +528,7 @@ class Bptree {
 
         // 更新所有kv的pcell
         if (to.type > NODE_TYPE_LEAF) {
-            setChildPcell(to)
+            this.setChildPcell(to)
         }
 
         // 2. 把from页面子节点的父节点索引替换成to页面的索引
