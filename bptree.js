@@ -14,9 +14,14 @@
 //  +---------------+
 //  +     PREV      +
 //  +---------------+
-//  +  PCELL | USED +
+//  + PCELL |  USED +
 //  +---------------+
-//
+//  |   |       |   |
+//  |KEY|  ...  |KEY|
+//  |   |       |   |
+//  |---+-------+---+
+//  |VAL|  ...  |VAL|
+//  +---+-------+---+
 
 //const { PAGE_PARENT_IDX_LEN, PAGE_PREV_IDX_LEN, PAGE_NEXT_IDX_LEN } = require("./const.js");
 const {
