@@ -1,28 +1,65 @@
-## 1. 概述 
-基于nodejs的b+树的实现，目前实现了节点的插入，后续待逐步实现删除。计划在完全实现b+树后，以b+树的基于实现一个kv存储，目前准备完善中！文档后续补上！
+## 1. 说明 
+任何一个应用系统中，数据库都处于核心的地位。不管是业务逻辑的设计，系统性能的优化最终都归结于数据库的选型和表设计。而数据库的引擎核心在于b+树，为了厘清b+树的底层原理，我准备从零开始手撸一颗b+树，并计划将来在该b+树的基础上，实现一个简单的kv存储的玩具，如果有机会的话，还可以引入sql的解析，让这个玩具更加逼真。为了劲量的降低开发难度，首先采用nodejs来实现这颗b+树，在原型验证通过之后，可以考虑切换到其他语言。目前已经实现了b+树节点的增删查改、磁盘文件的持久化，其余功能准备完善中！
 </br>
 
 ## 2. 运行 
-创建数据库，并插入100到80的数据，键和值相同：
-
 ```javascript
-const bptree = require("./bptree.js");
+const winston = require('./winston/config');
+const Bptree = require("./bptree.js");
+const fileops = require("./fileops.js");
 const constant = require("./const.js");
 
-async function dbTest() {
-    let dbname = "test.db"
-    let fd = await bptree.init(dbname)
-    for (var value = 100; value >= 80; value--) {    // 先定位指针的问题
-        let key = Buffer.alloc(constant.KEY_MAX_LEN) // 键值序列化为buf, 小端存储  
-        key.fill(0)
-        key.writeInt32LE(value)
-        await bptree.insert(key, value)
-    }
-    await bptree.flush(fd)
-    //await bptree.close(dbname)
+const tools = require('./tools')
+
+const bptree = new Bptree()
+
+async function fileOperTest() {
+    let fd = await fileops.openFile("lee.db")
+    const buffer = Buffer.alloc(10);
+    buffer.write("helloworld")
+    await fileops.writeFile(fd, buffer, 0, 10)
+    await fileops.closeFile(fd)
+    let exists = await fileops.existFile("lee.db")
+    console.log(exists)
 }
 
-dbTest()
+async function writeTest() {
+    let dbname = "test.db"
+    let fd = await bptree.init(dbname)
+    for (var value = 100; value >= 98; value--) {
+        let kbuf = tools.buffer(value)
+        await bptree.insert(kbuf, value)
+    }
+    await bptree.flush(fd)
+
+}
+
+async function findTest(key) {
+    let dbname = "test.db"
+    await bptree.init(dbname)
+
+    let kbuf = tools.buffer(key)
+    let value = bptree.select(kbuf)
+
+    await bptree.close(dbname)
+    console.log("value = " + value)
+}
+
+async function removeTest(key) {
+    let dbname = "test.db"
+    let fd = await bptree.init(dbname)
+
+    let kbuf = tools.buffer(key)
+    bptree.remove(kbuf)
+    await bptree.flush(fd)
+}
+
+writeTest() // 创建，插入
+
+findTest(98) // 查找
+
+removeTest(85) // 删除
+
 ```
 </br>
 
