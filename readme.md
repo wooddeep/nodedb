@@ -69,13 +69,15 @@ removeTest(85) // 删除
 </br>
 
 ### 3.1 页节点结构说明   
-页节点的头5个字段分别存储的为页类型、父页节点下标、兄页节点下标、弟叶结点下标、节点内已经填充的数据个数，这个5个字段都是4个字节，以小端模式存储。这5个字段长度的定位在const.js文件中如下：  
+页节点的头6个字段分别存储的为页类型、父页节点下标、兄页节点下标、弟叶结点下标、父节点CELL索引，节点内已经填充的数据个数，前4个字段各4个字节，以小端模式存储，后两个字段各2个字节。这6个字段长度的定位在const.js文件中如下：  
 ```javascript
-const PAGE_PARENT_IDX_LEN = 4
-const PAGE_PREV_IDX_LEN = 4
-const PAGE_NEXT_IDX_LEN = 4
-const PAGE_TYPE_LEN = 4 // 页类型：2 ~ 头结点; 1 ~ 茎节点; 0 ~ 页节点
-const CELL_USED_LEN = 4
+const PAGE_TYPE_LEN = 4       // 代表类型的字节数
+const PAGE_PARENT_IDX_LEN = 4 // 父节点索引的字节数
+const PAGE_NEXT_IDX_LEN = 4   // 兄节点索引的字节数
+const PAGE_PREV_IDX_LEN = 4   // 弟节点索引的字节数
+const PARENT_CELL_IDX_LEN = 2 // 父节点CELL的索引
+const CELL_USED_LEN = 2       // 使用键值数的字节数
+
 ```
 从每页的第20（4 * 5）个字节开始, 便存储的是页的具体数据，以键值对（KEY：VAL）的形式，存储的页的数据。其中，若页的类型为2或者1， 则VAL存储的是子节点的页节点下标，若页类型为0，则VAL存储的是具体的数值, 这里设计存储4字节的整形数据，后续可扩展。其中键和值的所占字节长度定义在const.js文件中：   
 ```javascript
@@ -85,7 +87,21 @@ const VAL_IDX_LEN = 4  // 值长度, 根或茎节点指向子页面, 叶子节�
 为了调试方便，设置页的大小为64，这样，每页中最大的键值对个数为3，即ORDER_NUM，定义在const.js文件中：
 ```javascript
 const PAGE_SIZE = 64 // 页大小
-const ORDER_NUM = Math.floor((PAGE_SIZE - PAGE_TYPE_LEN - PAGE_PARENT_IDX_LEN - CELL_USED_LEN - PAGE_PREV_IDX_LEN - PAGE_NEXT_IDX_LEN) / (KEY_MAX_LEN + VAL_IDX_LEN)) // b+树的阶
+const PAGE_TYPE_OFFSET = 0    // 页类型页内偏移
+const PAGE_PARENT_OFFSET = PAGE_TYPE_OFFSET + PAGE_TYPE_LEN       // 页类型页内偏移
+const PAGE_NEXT_OFFSET = PAGE_PARENT_OFFSET + PAGE_PARENT_IDX_LEN // 父索引页内偏移
+const PAGE_PREV_OFFSET = PAGE_NEXT_OFFSET + PAGE_NEXT_IDX_LEN     // 兄索引页内偏移
+const PARENT_CELL_OFFSET = PAGE_PREV_OFFSET + PAGE_PREV_IDX_LEN   // 父节点CELL索引偏移
+const CELL_USED_OFFSET = PARENT_CELL_OFFSET + PARENT_CELL_IDX_LEN // 弟索引页内偏移
+const CELL_OFFSET = CELL_USED_OFFSET + CELL_USED_LEN              // 存KV值的页内偏移
+const HEAD_LEN = CELL_OFFSET  
+
+const CELL_LEN = KEY_MAX_LEN + VAL_IDX_LEN                        // 每一对KV的长度
+
+const ORDER_NUM = Math.floor((PAGE_SIZE - HEAD_LEN) / CELL_LEN)   // b+树的阶
+const LESS_HALF_NUM = Math.floor(ORDER_NUM / 2)  // 少的一半
+const MORE_HALF_NUM = Math.ceil(ORDER_NUM / 2)   // 多的一半
+
 ```
 当然，在调试成功之后，可以扩大PAGE_SIZE, 以增加每页可存储的数据。  
 
@@ -126,10 +142,10 @@ const ORDER_NUM = Math.floor((PAGE_SIZE - PAGE_TYPE_LEN - PAGE_PARENT_IDX_LEN - 
 var rootPage = undefined // 根页面
 const pageMap = {} // 页节点表
 
-function newPage(type) {
+fucntion newPage(type) {
     var cells = []
-    for (var index = 0; index < ORDER_NUM; index++) { // 叶结点内数据数组
-        var cell = newCell()
+    for (var index = 0; index < ORDER_NUM; index++) {
+        var cell = this.newCell()
         cells.push(cell)
     }
 
@@ -138,11 +154,11 @@ function newPage(type) {
         parent: -1,         // 父节点
         next: -1,           // 兄节点
         prev: -1,           // 弟节点 
+        pcell: -1,          // 父节点 cell索引
         used: 0,
-        cells: cells,       // 数组数组
+        cells: cells,
     }
 }
-
 ```
 
 </br>
