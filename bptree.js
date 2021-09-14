@@ -237,7 +237,7 @@ class Bptree {
         if (targetPage.used <= ORDER_NUM) {
             targetPage.cells.shift() // remove left 
         }
-        
+
         if (targetPage.used == ORDER_NUM + 1) { // 若插入后, 节点包含关键字数大于阶数, 则分裂
             if (targetPage.type == NODE_TYPE_ROOT) { // 缓存头结点的freelist信息
                 freeNext = targetPage.next
@@ -494,14 +494,18 @@ class Bptree {
         this.setChildPcell(parent)
 
         if (parent.used < MORE_HALF_NUM) { // 判断是否需要对parent进行借用或者合并
-            let ret = this.mergeOrBorrow(parent)
-            if (ret.method == "merge") {
-                this.merge(parent, pageMap[ret.index])
+            if (parent.type < NODE_TYPE_ROOT) {
+                let ret = this.mergeOrBorrow(parent)
+                if (ret.method == "merge") {
+                    this.merge(parent, pageMap[ret.index])
+                }
+                if (ret.method == "borrow") {
+                    this.borrow(parent, pageMap[ret.index])
+                }
+                winston.error(ret);
+            } else {
+                winston.error("root not need merge!!!");
             }
-            if (ret.method == "borrow") {
-                this.borrow(parent, pageMap[ret.index])
-            }
-            winston.error(ret);
         }
     }
 
