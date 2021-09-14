@@ -17,13 +17,22 @@ async function fileOperTest() {
     console.log(exists)
 }
 
-async function writeTest() {
+async function writeTest(upper, lower) {
     let dbname = "test.db"
     let fd = await bptree.init(dbname)
-    for (var value = 100; value >= 98; value--) {
+    for (var value = upper; value >= lower; value--) {
         let kbuf = tools.buffer(value)
         await bptree.insert(kbuf, value)
     }
+    await bptree.flush(fd)
+
+}
+
+async function writeOneTest(value) {
+    let dbname = "test.db"
+    let fd = await bptree.init(dbname)
+    let kbuf = tools.buffer(value)
+    await bptree.insert(kbuf, value)
     await bptree.flush(fd)
 
 }
@@ -48,8 +57,14 @@ async function removeTest(key) {
     await bptree.flush(fd)
 }
 
-writeTest()
+//writeTest(100, 97)
+//writeTest(100, 98)
+writeOneTest(97)
+//findTest(85)
 
-//findTest(98)
-
-//removeTest(85)
+/*
+removeTest(82)
+removeTest(80)
+removeTest(85)
+removeTest(90)
+*/
