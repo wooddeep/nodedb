@@ -58,9 +58,6 @@ var rootPage = undefined // 根页面
 const pageMap = {} // 页表
 const fidMap = {}
 
-var headFreePrev = 0
-var headFreeNext = 0
-
 class Bptree {
 
     async init(dbname) {
@@ -145,8 +142,6 @@ class Bptree {
         left.dirty = true
         right.dirty = true
 
-        // page.next = headFreeNext
-        // page.prev = headFreePrev
     }
 
     /*
@@ -239,11 +234,6 @@ class Bptree {
         }
         
         if (targetPage.used == ORDER_NUM + 1) { // 若插入后, 节点包含关键字数大于阶数, 则分裂
-            // if (targetPage.type == NODE_TYPE_ROOT) { // 缓存空闲节点的索引
-            //     headFreePrev = targetPage.prev
-            //     headFreeNext = targetPage.next
-            // }
-
             let brotherPage = _page.newPage()    // 左边的兄弟页
             let pageIndex = this.maxIndex()
             pageMap[pageIndex] = brotherPage
