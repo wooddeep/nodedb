@@ -48,7 +48,7 @@ async function findTest(key) {
     console.log("value = " + value)
 }
 
-async function removeTest(key) {
+async function removeOneTest(key) {
     let dbname = "test.db"
     let fd = await bptree.init(dbname)
 
@@ -57,14 +57,29 @@ async function removeTest(key) {
     await bptree.flush(fd)
 }
 
+async function removeTest(keys) {
+    let dbname = "test.db"
+    let fd = await bptree.init(dbname)
+
+    keys.forEach(key => {
+        let kbuf = tools.buffer(key)
+        bptree.remove(kbuf)
+        console.log(key)
+    });
+    await bptree.flush(fd)
+}
+
 //writeTest(100, 97)
-//writeTest(100, 98)
-writeOneTest(97)
+//writeTest(100, 97)
+
+//writeOneTest(97)
 //findTest(85)
 
-/*
-removeTest(82)
-removeTest(80)
-removeTest(85)
-removeTest(90)
+//removeTest([100, 99, 98, 97])
+
+
+removeOneTest(100)
+/*removeOneTest(80)
+removeOneTest(85)
+removeOneTest(90)
 */

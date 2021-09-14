@@ -58,6 +58,9 @@ var rootPage = undefined // 根页面
 const pageMap = {} // 页表
 const fidMap = {}
 
+var freeNext = 0
+var freePrev = 0
+
 class Bptree {
 
     async init(dbname) {
@@ -74,8 +77,8 @@ class Bptree {
         if (stat.size < PAGE_SIZE) { // 空文件, 写入一页
             rootPage = _page.newPage(NODE_TYPE_ROOT)    // 新生成一个根页面
             rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
-            rootPage.next = headFreeNext        // rootPage的prev和next指向自己，用于空闲链表
-            rootPage.prev = headFreePrev
+            rootPage.next = 0        // rootPage的prev和next指向自己，用于空闲链表
+            rootPage.prev = 0
             pageMap[0] = rootPage
             let buff = _page.pageToBuff(rootPage)
             let ret = await fileops.writeFile(fd, buff, 0, PAGE_SIZE)
@@ -111,7 +114,7 @@ class Bptree {
      *    @left: 左节点
      *    @right: 右节点
      */
-    rebuildRoot(page, left, right, fp, fn) {
+    rebuildRoot(page, left, right) {
         for (var index = 0; index < ORDER_NUM - 2; index++) {
             var cell = _page.newCell()
             page.cells[index] = cell
@@ -142,6 +145,8 @@ class Bptree {
         left.dirty = true
         right.dirty = true
 
+        page.prev = freePrev
+        page.next = freeNext
     }
 
     /*
@@ -234,6 +239,11 @@ class Bptree {
         }
         
         if (targetPage.used == ORDER_NUM + 1) { // 若插入后, 节点包含关键字数大于阶数, 则分裂
+            if (targetPage.type == NODE_TYPE_ROOT) { // 缓存头结点的freelist信息
+                freeNext = targetPage.next
+                freePrev = targetPage.prev
+            }
+
             let brotherPage = _page.newPage()    // 左边的兄弟页
             let pageIndex = this.maxIndex()
             pageMap[pageIndex] = brotherPage
@@ -241,7 +251,6 @@ class Bptree {
             brotherPage.dirty = true    // 新页应该写入磁盘
             brotherPage.type = targetPage.type
             brotherPage.parent = targetPage.parent
-
             let prevIndex = targetPage.prev
             if (prevIndex != -1) {
                 pageMap[prevIndex].next = pageIndex
@@ -285,7 +294,7 @@ class Bptree {
                 }
 
                 brotherPage.dirty = true
-                this.rebuildRoot(targetPage, brotherPage, movePage, headFreePrev, headFreeNext) // 设置根节点的cell
+                this.rebuildRoot(targetPage, brotherPage, movePage) // 设置根节点的cell
                 return
             }
             // 2. 新页的键值和页号(index)插入到父节点
@@ -339,12 +348,12 @@ class Bptree {
         page.dirty = true
 
         let upParent = false
-        if (page.cells[pcell].key.compare(old) == 0) { // 替换
+        if (page.cells[pcell].key.compare(now) < 0) { // 替换
             now.copy(page.cells[pcell].key, 0, 0, KEY_MAX_LEN)  // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
             upParent = true
         }
 
-        if (upParent) {
+        if (upParent && pageMap[page.parent] != undefined) {
             this.updateMaxToRoot(pageMap[page.parent], page.pcell, old, now)
         }
 
@@ -463,14 +472,14 @@ class Bptree {
             }
         }
 
-        // // 3. from page变成空页，需要用过空闲页链表串起来
-        // let firstFreeIndex = rootPage.next
-        // let firstFreePage = pageMap[firstFreeIndex]
-        // rootPage.next = from.index
-        // from.next = firstFreeIndex
-        // from.prev = firstFreePage.prev
-        // firstFreePage.prev = from.index
-        // from.type = NODE_TYPE_FREE
+        // 3. from page变成空页，需要用过空闲页链表串起来
+        let firstFreeIndex = rootPage.next
+        let firstFreePage = pageMap[firstFreeIndex]
+        rootPage.next = from.index
+        from.next = firstFreeIndex
+        from.prev = firstFreePage.prev
+        firstFreePage.prev = from.index
+        from.type = NODE_TYPE_FREE
 
         // 4. 从父节点中把对应的kv值删除, 递归判断是否需要对父节点进行借用或者合并
         let parent = pageMap[from.parent]
