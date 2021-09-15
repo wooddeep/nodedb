@@ -63,6 +63,31 @@ var freePrev = 0
 
 class Bptree {
 
+    appendFreeNode(id) {
+        let from = pageMap[id]
+        let firstFreeIndex = rootPage.next
+        let firstFreePage = pageMap[firstFreeIndex] // TODO 如果找不到, 需要重新加载
+        rootPage.next = id
+        from.next = firstFreeIndex
+        from.prev = firstFreePage.prev
+        firstFreePage.prev = id
+        from.type = NODE_TYPE_FREE
+    }
+
+    fetchPageNode(type) {
+        if (rootPage.next == rootPage.prev) {
+            return _page.newPage(type)
+        }
+
+        let id = rootPage.next
+        let node = pageMap[id]
+        let nextId = node.next
+        rootPage.next = nextId
+        pageMap[nextId].prev = node.prev
+        node.type = type
+        return node
+    }
+
     async init(dbname) {
         let exist = await fileops.existFile(dbname)
         if (!exist) { // 文件不存在则创建
@@ -75,7 +100,7 @@ class Bptree {
         winston.info("file size = " + stat.size)
 
         if (stat.size < PAGE_SIZE) { // 空文件, 写入一页
-            rootPage = _page.newPage(NODE_TYPE_ROOT)    // 新生成一个根页面
+            rootPage = this.fetchPageNode(NODE_TYPE_ROOT)    // 新生成一个根页面
             rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
             rootPage.next = 0        // rootPage的prev和next指向自己，用于空闲链表
             rootPage.prev = 0
@@ -92,13 +117,22 @@ class Bptree {
         rootPage = _page.buffToPage(buff)
         rootPage.index = 0
         pageMap[0] = rootPage
+        let freeIdList = []
         for (var index = PAGE_SIZE; index < stat.size; index += PAGE_SIZE) {
             let bytes = await fileops.readFile(fd, buff, START_OFFSET, PAGE_SIZE, index) // 非root页
             let pageNode = _page.buffToPage(buff)
             let pageIndex = Math.floor(index / PAGE_SIZE)
             pageNode.index = pageIndex
             pageMap[pageIndex] = pageNode
+            if (pageNode.type == NODE_TYPE_FREE) {
+                freeIdList.push(pageIndex)
+            }
         }
+
+        // TODO 创建freelist
+        freeIdList.forEach(id => {
+            this.appendFreeNode(id)
+        })
 
         return fd
     }
@@ -174,7 +208,7 @@ class Bptree {
         if (!found) {
             if (pageIndex == 0) { // 说明还没有分配叶子值
                 let pageNum = Object.getOwnPropertyNames(pageMap).length
-                let page = _page.newPage(NODE_TYPE_LEAF) // 生成叶子节点
+                let page = this.fetchPageNode(NODE_TYPE_LEAF) // 生成叶子节点
                 pageMap[pageNum] = page // 插入到缓存表
                 page.parent = currPage.index // 父页节点下标
                 page.index = pageNum
@@ -244,7 +278,7 @@ class Bptree {
                 freePrev = targetPage.prev
             }
 
-            let brotherPage = _page.newPage()    // 左边的兄弟页
+            let brotherPage = this.fetchPageNode(undefined)    // 左边的兄弟页
             let pageIndex = this.maxIndex()
             pageMap[pageIndex] = brotherPage
             brotherPage.index = pageIndex // 设置页下标
@@ -276,7 +310,7 @@ class Bptree {
             targetPage.cells.shift() // 补充，把左侧多余的一个删除
 
             if (targetPage.type == NODE_TYPE_ROOT) { // 如果分裂了root节点
-                let movePage = _page.newPage(NODE_TYPE_STEM) // 把rootPage拷贝到movePage里面
+                let movePage = this.fetchPageNode(NODE_TYPE_STEM) // 把rootPage拷贝到movePage里面
                 let moveIndex = this.maxIndex()
                 pageMap[moveIndex] = movePage
                 _page.copyPage(movePage, targetPage)
@@ -473,13 +507,14 @@ class Bptree {
         }
 
         // 3. from page变成空页，需要用过空闲页链表串起来
-        let firstFreeIndex = rootPage.next
-        let firstFreePage = pageMap[firstFreeIndex]
-        rootPage.next = from.index
-        from.next = firstFreeIndex
-        from.prev = firstFreePage.prev
-        firstFreePage.prev = from.index
-        from.type = NODE_TYPE_FREE
+        this.appendFreeNode(from.index)
+        // let firstFreeIndex = rootPage.next
+        // let firstFreePage = pageMap[firstFreeIndex]
+        // rootPage.next = from.index
+        // from.next = firstFreeIndex
+        // from.prev = firstFreePage.prev
+        // firstFreePage.prev = from.index
+        // from.type = NODE_TYPE_FREE
 
         // 4. 从父节点中把对应的kv值删除, 递归判断是否需要对父节点进行借用或者合并
         let parent = pageMap[from.parent]

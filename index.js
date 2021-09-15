@@ -72,14 +72,10 @@ async function removeTest(keys) {
 //writeTest(100, 97)
 //writeTest(100, 97)
 
-//writeOneTest(97)
+writeOneTest(97)
+
 //findTest(85)
 
 //removeTest([100, 99, 98, 97])
 
-
-removeOneTest(100)
-/*removeOneTest(80)
-removeOneTest(85)
-removeOneTest(90)
-*/
+//removeOneTest(100)
