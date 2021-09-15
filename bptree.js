@@ -75,8 +75,11 @@ class Bptree {
     }
 
     fetchPageNode(type) {
-        if (rootPage.next == rootPage.prev) {
-            return _page.newPage(type)
+        if (rootPage == undefined || rootPage.next == rootPage.prev) {
+            let index = this.maxIndex() // TODO 修改为分段加载模式
+            let node = _page.newPage(type)
+            node.index = index
+            return node
         }
 
         let id = rootPage.next
@@ -107,7 +110,7 @@ class Bptree {
             pageMap[0] = rootPage
             let buff = _page.pageToBuff(rootPage)
             let ret = await fileops.writeFile(fd, buff, 0, PAGE_SIZE)
-            console.log("file write ret = " + ret)
+            winston.error(`file write ret = $ret`)
             await fileops.syncFile(fd)
             return fd
         }
@@ -207,8 +210,8 @@ class Bptree {
         }
         if (!found) {
             if (pageIndex == 0) { // 说明还没有分配叶子值
-                let pageNum = Object.getOwnPropertyNames(pageMap).length
                 let page = this.fetchPageNode(NODE_TYPE_LEAF) // 生成叶子节点
+                let pageNum = page.index
                 pageMap[pageNum] = page // 插入到缓存表
                 page.parent = currPage.index // 父页节点下标
                 page.index = pageNum
@@ -279,9 +282,8 @@ class Bptree {
             }
 
             let brotherPage = this.fetchPageNode(undefined)    // 左边的兄弟页
-            let pageIndex = this.maxIndex()
+            let pageIndex = brotherPage.index
             pageMap[pageIndex] = brotherPage
-            brotherPage.index = pageIndex // 设置页下标
             brotherPage.dirty = true    // 新页应该写入磁盘
             brotherPage.type = targetPage.type
             brotherPage.parent = targetPage.parent
@@ -311,11 +313,10 @@ class Bptree {
 
             if (targetPage.type == NODE_TYPE_ROOT) { // 如果分裂了root节点
                 let movePage = this.fetchPageNode(NODE_TYPE_STEM) // 把rootPage拷贝到movePage里面
-                let moveIndex = this.maxIndex()
+                let moveIndex = movePage.index
                 pageMap[moveIndex] = movePage
                 _page.copyPage(movePage, targetPage)
                 movePage.type = NODE_TYPE_STEM // 降为茎节点
-                movePage.index = moveIndex
                 movePage.parent = 0 // 父节点为根节点
                 movePage.prev = brotherPage.index
                 movePage.dirty = true
@@ -367,7 +368,7 @@ class Bptree {
         page.dirty = true
         key.copy(page.cells[ORDER_NUM - 1].key, 0, 0, KEY_MAX_LEN)    // TODO ORDER_NUM -> KEY_MAX_LEN
         let childIndex = page.cells[ORDER_NUM - 1].index
-        console.log("childIndex = " + childIndex)
+        winston.error(`childIndex = $childIndex`)
         if (childIndex > 0 && pageMap[childIndex].type > NODE_TYPE_LEAF) {
             this.updateMaxToLeaf(pageMap[childIndex], key)
         }

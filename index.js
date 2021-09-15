@@ -14,7 +14,7 @@ async function fileOperTest() {
     await fileops.writeFile(fd, buffer, 0, 10)
     await fileops.closeFile(fd)
     let exists = await fileops.existFile("lee.db")
-    console.log(exists)
+    winston.info(exists)
 }
 
 async function writeTest(upper, lower) {
@@ -45,7 +45,7 @@ async function findTest(key) {
     let value = bptree.select(kbuf)
 
     await bptree.close(dbname)
-    console.log("value = " + value)
+    winston.info("value = " + value)
 }
 
 async function removeOneTest(key) {
@@ -64,17 +64,17 @@ async function removeTest(keys) {
     keys.forEach(key => {
         let kbuf = tools.buffer(key)
         bptree.remove(kbuf)
-        console.log(key)
-    });
+        winston.info(`key = $key`)
+    })
     await bptree.flush(fd)
 }
 
 //writeTest(100, 97)
 //writeTest(100, 97)
 
-writeOneTest(97)
+writeOneTest(99)
 
-//findTest(85)
+//findTest(99)
 
 //removeTest([100, 99, 98, 97])
 
