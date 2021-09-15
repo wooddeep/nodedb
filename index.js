@@ -2,10 +2,12 @@ const winston = require('./winston/config');
 const Bptree = require("./bptree.js");
 const fileops = require("./fileops.js");
 const constant = require("./const.js");
-
+const Buffer = require("./buffer.js");
 const tools = require('./tools')
 
 const bptree = new Bptree()
+
+const buffer = new Buffer(1)
 
 async function fileOperTest() {
     let fd = await fileops.openFile("lee.db")
@@ -72,10 +74,11 @@ async function removeTest(keys) {
 //writeTest(100, 97)
 //writeTest(100, 97)
 
-writeOneTest(99)
+//writeOneTest(99)
 
 //findTest(99)
 
 //removeTest([100, 99, 98, 97])
 
 //removeOneTest(100)
+buffer.addPageNode(1)

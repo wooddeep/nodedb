@@ -32,7 +32,6 @@ class Page {
 
     // 静态函数
     static sayHello(name) {
-        this.para = name;         //修改静态变量
         return 'Hello, ' + name;
     }
 
@@ -69,7 +68,8 @@ class Page {
             next: -1,           // 兄节点
             prev: -1,           // 弟节点 
             pcell: -1,          // 父节点 cell索引
-            used: 0,
+            used: 0,            // 已经使用的cell个数
+            ocnt: 0,            // 操作次数
             cells: cells,
         }
     }
@@ -138,6 +138,4 @@ class Page {
     }
 }
 
-// 静态变量
-Page.para = 'lee';
 module.exports = Page;
