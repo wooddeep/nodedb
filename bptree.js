@@ -146,6 +146,7 @@ class Bptree {
             var cell = _page.newCell()
             page.cells[index] = cell
         }
+
         page.cells[ORDER_NUM - 2] = _page.newCell(left.cells[ORDER_NUM - 1].key, left.index)
         page.cells[ORDER_NUM - 1] = _page.newCell(right.cells[ORDER_NUM - 1].key, right.index)
         page.prev = -1
@@ -672,6 +673,25 @@ class Bptree {
             }
         }
         fileops.syncFile(fileId)
+    }
+
+    async dump() {
+        let pageNum = Object.getOwnPropertyNames(pageMap).length // 页数
+        for (var index = 0; index < pageNum; index++) {
+            var page = pageMap[index]
+            var buff = _page.pageToBuff(page)
+            let full = buff.toString('hex').toUpperCase()
+            for (var i = 0; i < 32; i++) {
+                process.stdout.write(full.substr(i * 2, 2));
+                process.stdout.write(" ")
+            }
+            process.stdout.write("\r\n")
+            for (var i = 32; i < 64; i++) {
+                process.stdout.write(full.substr(i * 2, 2));
+                process.stdout.write(" ")
+            }
+            process.stdout.write("\r\n")
+        }
     }
 
     async close() {

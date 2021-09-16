@@ -39,8 +39,12 @@ class Page {
         if (keyBuf == undefined) {
             keyBuf = Buffer.alloc(KEY_MAX_LEN)
         }
+
+        let buffer = Buffer.alloc(KEY_MAX_LEN)
+        keyBuf.copy(buffer, 0, 0, KEY_MAX_LEN)
+
         return {
-            key: keyBuf,
+            key: buffer,
             index: value,
         }
     }

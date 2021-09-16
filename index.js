@@ -46,28 +46,32 @@ async function removeTest(keys) {
     keys.forEach(key => {
         let kbuf = tools.buffer(key)
         bptree.remove(kbuf)
-        winston.info(`key = $key`)
+        winston.warn(`delete: key = ${key}`)
     })
 }
 
 async function test() {
-    
+
     await bptree.init("test.db")
 
-    await writeOneTest(1)
+    await writeTest(100, 97)
+    await writeTest(100, 97)
+    await removeTest([100])
+    //await removeTest([100, 99, 98, 97])
+
+    // await writeOneTest(100)
+    // await writeOneTest(99)
+
+    //await bptree.dump()
 
     await bptree.flush()
-    
-    await bptree.close()
+    //await bptree.close()
+
 }
 
 test()
 
-// writeTest(100, 97)
-// writeTest(100, 97)
-// removeTest([100, 99, 98, 97])
-// writeOneTest(100)
-// writeOneTest(99)
+
 
 //findTest(99)
 //removeOneTest(100)

@@ -13,7 +13,7 @@ const options = {
         colorize: false,
     },
     console: {
-        level: 'error',
+        level: 'warn',
         handleExceptions: true,
         json: false,
         colorize: true,
