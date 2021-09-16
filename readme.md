@@ -2,16 +2,18 @@
 任何一个应用系统中，数据库都处于核心的地位。不管是业务逻辑的设计，系统性能的优化最终都归结于数据库的选型和表设计。而数据库的引擎核心在于b+树，为了厘清b+树的底层原理，我准备从零开始手撸一颗b+树，并计划将来在该b+树的基础上，实现一个简单的kv存储的玩具，如果有机会的话，还可以引入sql的解析，让这个玩具更加逼真。为了劲量的降低开发难度，首先采用nodejs来实现这颗b+树，在原型验证通过之后，可以考虑切换到其他语言。目前已经实现了b+树节点的增删查改、磁盘文件的持久化，其余功能准备完善中！
 </br>
 
-## 2. 运行 
+## 2. 测试 
 ```javascript
 const winston = require('./winston/config');
 const Bptree = require("./bptree.js");
 const fileops = require("./fileops.js");
 const constant = require("./const.js");
-
+const Buffer = require("./buffer.js");
 const tools = require('./tools')
 
 const bptree = new Bptree()
+
+const buffer = new Buffer(1)
 
 async function fileOperTest() {
     let fd = await fileops.openFile("lee.db")
@@ -20,45 +22,52 @@ async function fileOperTest() {
     await fileops.writeFile(fd, buffer, 0, 10)
     await fileops.closeFile(fd)
     let exists = await fileops.existFile("lee.db")
-    console.log(exists)
+    winston.info(exists)
 }
 
-async function writeTest() {
-    let dbname = "test.db"
-    let fd = await bptree.init(dbname)
-    for (var value = 100; value >= 98; value--) {
+async function writeTest(upper, lower) {
+    for (var value = upper; value >= lower; value--) {
         let kbuf = tools.buffer(value)
         await bptree.insert(kbuf, value)
     }
-    await bptree.flush(fd)
+}
 
+async function writeOneTest(value) {
+    let kbuf = tools.buffer(value)
+    await bptree.insert(kbuf, value)
 }
 
 async function findTest(key) {
-    let dbname = "test.db"
-    await bptree.init(dbname)
-
     let kbuf = tools.buffer(key)
     let value = bptree.select(kbuf)
-
-    await bptree.close(dbname)
-    console.log("value = " + value)
+    winston.info("value = " + value)
 }
 
-async function removeTest(key) {
-    let dbname = "test.db"
-    let fd = await bptree.init(dbname)
-
+async function removeOneTest(key) {
     let kbuf = tools.buffer(key)
     bptree.remove(kbuf)
-    await bptree.flush(fd)
 }
 
-writeTest() // 创建，插入
+async function removeTest(keys) {
+    keys.forEach(key => {
+        let kbuf = tools.buffer(key)
+        bptree.remove(kbuf)
+        winston.info(`key = $key`)
+    })
+}
 
-findTest(98) // 查找
+async function test() {
+    
+    await bptree.init("test.db")
 
-removeTest(85) // 删除
+    await writeOneTest(1)
+
+    await bptree.flush()
+    
+    await bptree.close()
+}
+
+test()
 
 ```
 </br>
