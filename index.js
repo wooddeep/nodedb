@@ -71,14 +71,12 @@ async function removeTest(keys) {
     await bptree.flush(fd)
 }
 
-//writeTest(100, 97)
-//writeTest(100, 97)
-
-//writeOneTest(99)
+writeTest(100, 97)
+writeTest(100, 97)
+removeTest([100, 99, 98, 97])
+writeOneTest(100)
+writeOneTest(99)
 
 //findTest(99)
-
-//removeTest([100, 99, 98, 97])
-
 //removeOneTest(100)
-buffer.addPageNode(1)
+//buffer.addPageNode(1)
