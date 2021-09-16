@@ -73,9 +73,9 @@ async function removeTest(keys) {
 
 writeTest(100, 97)
 writeTest(100, 97)
-removeTest([100, 99, 98, 97])
-writeOneTest(100)
-writeOneTest(99)
+// removeTest([100, 99, 98, 97])
+// writeOneTest(100)
+// writeOneTest(99)
 
 //findTest(99)
 //removeOneTest(100)

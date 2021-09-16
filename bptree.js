@@ -110,7 +110,7 @@ class Bptree {
             pageMap[0] = rootPage
             let buff = _page.pageToBuff(rootPage)
             let ret = await fileops.writeFile(fd, buff, 0, PAGE_SIZE)
-            winston.error(`file write ret = $ret`)
+            winston.error(`file write ret = ${ret}`)
             await fileops.syncFile(fd)
             return fd
         }
@@ -379,7 +379,7 @@ class Bptree {
         page.ocnt++
         key.copy(page.cells[ORDER_NUM - 1].key, 0, 0, KEY_MAX_LEN)    // TODO ORDER_NUM -> KEY_MAX_LEN
         let childIndex = page.cells[ORDER_NUM - 1].index
-        winston.error(`childIndex = $childIndex`)
+        winston.error(`childIndex = ${childIndex}`)
         if (childIndex > 0 && pageMap[childIndex].type > NODE_TYPE_LEAF) {
             this.updateMaxToLeaf(pageMap[childIndex], key)
         }
