@@ -20,59 +20,51 @@ async function fileOperTest() {
 }
 
 async function writeTest(upper, lower) {
-    let dbname = "test.db"
-    let fd = await bptree.init(dbname)
     for (var value = upper; value >= lower; value--) {
         let kbuf = tools.buffer(value)
         await bptree.insert(kbuf, value)
     }
-    await bptree.flush(fd)
-
 }
 
 async function writeOneTest(value) {
-    let dbname = "test.db"
-    let fd = await bptree.init(dbname)
     let kbuf = tools.buffer(value)
     await bptree.insert(kbuf, value)
-    await bptree.flush(fd)
-
 }
 
 async function findTest(key) {
-    let dbname = "test.db"
-    await bptree.init(dbname)
-
     let kbuf = tools.buffer(key)
     let value = bptree.select(kbuf)
-
-    await bptree.close(dbname)
     winston.info("value = " + value)
 }
 
 async function removeOneTest(key) {
-    let dbname = "test.db"
-    let fd = await bptree.init(dbname)
-
     let kbuf = tools.buffer(key)
     bptree.remove(kbuf)
-    await bptree.flush(fd)
 }
 
 async function removeTest(keys) {
-    let dbname = "test.db"
-    let fd = await bptree.init(dbname)
-
     keys.forEach(key => {
         let kbuf = tools.buffer(key)
         bptree.remove(kbuf)
         winston.info(`key = $key`)
     })
-    await bptree.flush(fd)
 }
 
-writeTest(100, 97)
-writeTest(100, 97)
+async function test() {
+    
+    await bptree.init("test.db")
+
+    await writeOneTest(1)
+
+    await bptree.flush()
+    
+    await bptree.close()
+}
+
+test()
+
+// writeTest(100, 97)
+// writeTest(100, 97)
 // removeTest([100, 99, 98, 97])
 // writeOneTest(100)
 // writeOneTest(99)

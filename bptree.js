@@ -53,11 +53,10 @@ const fileops = require("./fileops.js")
 const tools = require('./tools')
 var Page = require('./page.js')
 const _page = new Page() // 默认构造函数
+var fileId = undefined
 
 var rootPage = undefined // 根页面 
 const pageMap = {} // 页表
-const fidMap = {}
-
 var freeNext = 0
 var freePrev = 0
 
@@ -98,20 +97,16 @@ class Bptree {
         }
 
         let fd = await fileops.openFile(dbname)
-        fidMap[dbname] = fd
+        fileId = fd
         let stat = await fileops.statFile(fd)
         winston.info("file size = " + stat.size)
 
-        if (stat.size < PAGE_SIZE) { // 空文件, 写入一页
+        if (stat.size < PAGE_SIZE) { // 空文件
             rootPage = this.fetchPageNode(NODE_TYPE_ROOT)    // 新生成一个根页面
             rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
             rootPage.next = 0        // rootPage的prev和next指向自己，用于空闲链表
             rootPage.prev = 0
             pageMap[0] = rootPage
-            let buff = _page.pageToBuff(rootPage)
-            let ret = await fileops.writeFile(fd, buff, 0, PAGE_SIZE)
-            winston.error(`file write ret = ${ret}`)
-            await fileops.syncFile(fd)
             return fd
         }
 
@@ -132,16 +127,11 @@ class Bptree {
             }
         }
 
-        // TODO 创建freelist
         freeIdList.forEach(id => {
             this.appendFreeNode(id)
         })
 
         return fd
-    }
-
-    async close(dbname) {
-        await fileops.closeFile(fidMap[dbname])
     }
 
     /*
@@ -672,16 +662,20 @@ class Bptree {
         }
     }
 
-    async flush(fd) {
+    async flush() {
         let pageNum = Object.getOwnPropertyNames(pageMap).length // 页数
         for (var index = 0; index < pageNum; index++) {
             var page = pageMap[index]
             if (page.dirty == true) {
                 var buff = _page.pageToBuff(page)
-                fileops.writeFile(fd, buff, 0, PAGE_SIZE, index * PAGE_SIZE)
+                fileops.writeFile(fileId, buff, 0, PAGE_SIZE, index * PAGE_SIZE)
             }
         }
-        fileops.syncFile(fd)
+        fileops.syncFile(fileId)
+    }
+
+    async close() {
+        await fileops.closeFile(fileId)
     }
 
 }
