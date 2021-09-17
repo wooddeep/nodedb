@@ -85,7 +85,7 @@ async function test1() {
 }
 
 const funcList = [test0, test1]
-const filterOut = [test0]
+const filterOut = [test1]
 
 funcList.filter(x => !filterOut.includes(x)).forEach(func => func())
 
