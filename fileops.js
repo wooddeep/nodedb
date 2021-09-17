@@ -17,7 +17,7 @@ function openFile(filename) {
     let promise = new Promise((resolve, reject) => {
         fs.open(filename, 'r+', function (err, fd) {
             if (err) {
-                console.error(err)
+                winston.error(err)
                 reject(err)
             }
             winston.info("文件打开成功！")
@@ -32,7 +32,7 @@ function createFile(filename) {
     let promise = new Promise((resolve, reject) => {
         fs.writeFile(filename, "", function (err) {
             if (err) {
-                console.log(err)
+                winston.log(err)
                 reject(err)
             }
             winston.info("The file was saved!")
@@ -54,7 +54,7 @@ function readFile(fd, buf, off = 0, len = PAGE_SIZE, pos = 0) {
     let promise = new Promise((resolve, reject) => {
         fs.read(fd, buf, off, len, pos, function (err, bytes) {
             if (err) {
-                console.log(err)
+                winston.log(err)
                 reject(err)
             }
             winston.info(bytes + "字节被读取");
@@ -75,7 +75,7 @@ function writeFile(fd, buf, offset, length, pos = 0) {
     let promise = new Promise((resolve, reject) => {
         fs.write(fd, buf, offset, length, pos, function (err) {
             if (err) {
-                console.error(err);
+                winston.error(err);
                 reject(err)
             }
             winston.info("数据写入成功！");
@@ -89,7 +89,7 @@ function statFile(fd) {
     let promise = new Promise((resolve, reject) => {
         fs.fstat(fd, function (error, stats) {
             if (error) {
-                console.error(error)
+                winston.error(error)
                 reject(error)
             } else {
                 winston.info(stats)
@@ -113,7 +113,7 @@ function syncFile(fd) {
     let promise = new Promise((resolve, reject) => {
         fs.fsync(fd, function (error, stats) {
             if (error) {
-                console.error(error)
+                winston.error(error)
                 reject(error)
             } else {
                 resolve(stats)
@@ -135,10 +135,25 @@ function closeFile(fd) {
     let promise = new Promise((resolve, reject) => {
         fs.close(fd, function (err) {
             if (err) {
-                console.error(err);
+                winston.error(err);
                 reject(err)
             }
             winston.info("文件关闭成功！");
+            resolve(true)
+        });
+    })
+    return promise
+}
+
+
+function unlinkFile(filename) {
+    let promise = new Promise((resolve, reject) => {
+        fs.unlink(filename, function (err) {
+            if (err) {
+                winston.info(err)
+                reject(err)
+            }
+            winston.info("文件删除成功！");
             resolve(true)
         });
     })
@@ -154,6 +169,7 @@ var fileops = {
     closeFile: closeFile,
     statFile: statFile,
     syncFile: syncFile,
+    unlinkFile: unlinkFile,
 }
 
 module.exports = fileops;

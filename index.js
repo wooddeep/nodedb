@@ -4,6 +4,7 @@ const fileops = require("./fileops.js");
 const constant = require("./const.js");
 const Buffer = require("./buffer.js");
 const tools = require('./tools')
+const assert = require('assert');
 
 const bptree = new Bptree()
 
@@ -35,6 +36,7 @@ async function findTest(key) {
     let kbuf = tools.buffer(key)
     let value = bptree.select(kbuf)
     winston.info("value = " + value)
+    return value
 }
 
 async function removeOneTest(key) {
@@ -50,29 +52,40 @@ async function removeTest(keys) {
     })
 }
 
-async function test() {
-
-    await bptree.init("test.db")
-
-    await writeTest(100, 97)
-    await writeTest(100, 97)
-    await removeTest([100])
-    //await removeTest([100, 99, 98, 97])
-
-    // await writeOneTest(100)
-    // await writeOneTest(99)
-
-    //await bptree.dump()
-
+async function test0() {
+    let dbname = "test.db"
+    await bptree.drop(dbname)
+    await bptree.init(dbname)
+    await writeTest(100, 80)
+    await bptree.dump()
     await bptree.flush()
-    //await bptree.close()
-
+    let value = await findTest(100)
+    assert.equal(value, 100)
 }
 
-test()
+async function test1() {
+    let dbname = "test.db"
+    await bptree.drop(dbname)
+    await bptree.init(dbname)
 
+    await writeTest(100, 97)
+    await removeTest([100, 99, 98, 97])
+    await writeOneTest(100)
+    await writeOneTest(99)
+    
 
+    let value = await findTest(100)
+    assert.equal(value, 100)
 
-//findTest(99)
-//removeOneTest(100)
-//buffer.addPageNode(1)
+    value = await findTest(98)
+    assert.equal(value, undefined)
+
+    await bptree.flush()
+    await bptree.close()
+}
+
+const funcList = [test0, test1]
+const filterOut = [test0]
+
+funcList.filter(x => !filterOut.includes(x)).forEach(func => func())
+

@@ -90,6 +90,10 @@ class Bptree {
         return node
     }
 
+    async drop(dbname) {
+        let ret = await fileops.unlinkFile(dbname)
+    }
+
     async init(dbname) {
         let exist = await fileops.existFile(dbname)
         if (!exist) { // 文件不存在则创建
@@ -385,7 +389,7 @@ class Bptree {
         page.dirty = true
         page.ocnt++
         let upParent = false
-        if (page.cells[pcell].key.compare(now) < 0) { // 替换
+        if (page.cells[pcell].key.compare(now) != 0) { // 替换, 值不一样就需要替换，不一定是大于
             now.copy(page.cells[pcell].key, 0, 0, KEY_MAX_LEN)  // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
             upParent = true
         }
@@ -447,7 +451,28 @@ class Bptree {
                 }
             }
         }
+
+        return {  // 没有兄弟节点, 则保持不动, 或者向上收缩
+            "method": "shrink",
+            "index": page.index,
+        }
     }
+
+    shrink(page) {
+        let parent = pageMap[page.parent]
+        if (page.type == NODE_TYPE_LEAF && parent.prev == -1
+            && parent.next == -1 && page.type != NODE_TYPE_ROOT) {
+            appendFreeNode(page.id) // 加入到空闲链表
+            parent.used = page.used
+            for (var i = 0; i < page.used; i++) {
+                parent.cells[ORDER_NUM - 1 - i] = _page.newCell(
+                    page.cells[ORDER_NUM - 1 - i].key,
+                    page.cells[ORDER_NUM - 1 - i].value
+                )
+            }
+        }
+    }
+
 
     /*
      * 如果把from 合并到 to, 则需要修改from子节点的parent
@@ -538,6 +563,10 @@ class Bptree {
                 if (ret.method == "borrow") {
                     this.borrow(parent, pageMap[ret.index])
                 }
+                if (ret.method == "shrink") {
+                    this.shrink(parent)
+                }
+
                 winston.error(ret);
             } else {
                 winston.error("root not need merge!!!");
@@ -645,19 +674,30 @@ class Bptree {
         if (cellIndex == ORDER_NUM - 1) {
             let now = targetPage.cells[ORDER_NUM - 1].key
             let ppage = pageMap[targetPage.parent]
-            if (now.compare(old) != 0) { // 值不一样则更新
+            if (now.compare(old) != 0 && targetPage.used > 0) { // 值不一样则更新, 且本页有cell被使用
                 this.updateMaxToRoot(ppage, targetPage.pcell, old, now)
+            }
+
+            if (targetPage.used == 0) {
+                this.appendFreeNode(targetPage.index)
+                ppage.cells.splice(targetPage.pcell, 1) // 父节点中cell删除一个
+                ppage.used--
+                ppage.cells.splice(0, 0, _page.newCell()) // 则需要从左侧补充一个
+                this.setChildPcell(ppage)
             }
         }
 
-        // TODO 2. 删除数据后，节点的使用数目小于 MORE_HALF_NUM, 则需要归并或借用
-        if (targetPage.used < MORE_HALF_NUM) {
+        // 删除数据后，节点的使用数目小于 MORE_HALF_NUM, 则需要归并或借用
+        if (targetPage.used < MORE_HALF_NUM && targetPage.used > 0) {
             let ret = this.mergeOrBorrow(targetPage)
             if (ret.method == "merge") {
                 this.merge(targetPage, pageMap[ret.index])
             }
             if (ret.method == "borrow") {
                 this.borrow(targetPage, pageMap[ret.index])
+            }
+            if (ret.method == "shrink") {
+                this.shrink(targetPage)
             }
             winston.error(ret);
         }

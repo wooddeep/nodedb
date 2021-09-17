@@ -20,6 +20,7 @@ const {
     PAGE_PREV_OFFSET,
     PARENT_CELL_OFFSET,
     CELL_USED_OFFSET,
+    VAL_IDX_LEN,
 } = require("./const.js");
 
 class Page {
@@ -42,6 +43,9 @@ class Page {
 
         let buffer = Buffer.alloc(KEY_MAX_LEN)
         keyBuf.copy(buffer, 0, 0, KEY_MAX_LEN)
+
+        //let vbuff = Buffer.alloc(VAL_IDX_LEN) // TODO
+        //vbuff.writeInt32LE(value)
 
         return {
             key: buffer,
