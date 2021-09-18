@@ -709,10 +709,10 @@ class Bptree {
             var page = pageMap[index]
             if (page.dirty == true) {
                 var buff = _page.pageToBuff(page)
-                fileops.writeFile(fileId, buff, 0, PAGE_SIZE, index * PAGE_SIZE)
+                await fileops.writeFile(fileId, buff, 0, PAGE_SIZE, index * PAGE_SIZE)
             }
         }
-        fileops.syncFile(fileId)
+        await fileops.syncFile(fileId)
     }
 
     async dump() {

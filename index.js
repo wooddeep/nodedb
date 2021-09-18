@@ -72,7 +72,7 @@ async function test1() {
     await removeTest([100, 99, 98, 97])
     await writeOneTest(100)
     await writeOneTest(99)
-    
+
 
     let value = await findTest(100)
     assert.equal(value, 100)
@@ -84,8 +84,31 @@ async function test1() {
     await bptree.close()
 }
 
-const funcList = [test0, test1]
-const filterOut = [test1]
+
+async function test2() {
+    let dbname = "test.db"
+    try {
+        await bptree.drop(dbname)
+    } catch (e) {
+        winston.warn(`drop error!`)
+    }
+
+    await bptree.init(dbname)
+
+    await writeTest(100, 0)
+
+    for (var i = 0; i < 100; i++) {
+        let value = await findTest(i)
+        assert.equal(value, i)
+    }
+
+    await bptree.flush()
+
+    await bptree.close()
+}
+
+const funcList = [test0, test1, test2]
+const filterOut = [test0, test1]
 
 funcList.filter(x => !filterOut.includes(x)).forEach(func => func())
 

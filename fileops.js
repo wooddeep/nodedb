@@ -57,7 +57,7 @@ function readFile(fd, buf, off = 0, len = PAGE_SIZE, pos = 0) {
                 winston.log(err)
                 reject(err)
             }
-            winston.info(bytes + "字节被读取");
+            winston.info(bytes + "字节被读取")
             resolve(bytes)
         });
     })
@@ -78,7 +78,7 @@ function writeFile(fd, buf, offset, length, pos = 0) {
                 winston.error(err);
                 reject(err)
             }
-            winston.info("数据写入成功！");
+            winston.info("数据写入成功！")
             resolve(true)
         });
     })
@@ -138,7 +138,7 @@ function closeFile(fd) {
                 winston.error(err);
                 reject(err)
             }
-            winston.info("文件关闭成功！");
+            winston.info("文件关闭成功！")
             resolve(true)
         });
     })
@@ -151,12 +151,17 @@ function unlinkFile(filename) {
         fs.unlink(filename, function (err) {
             if (err) {
                 winston.info(err)
-                reject(err)
+                reject(false)
             }
-            winston.info("文件删除成功！");
+            winston.info("文件删除成功！")
             resolve(true)
         });
     })
+
+    //promise.catch(e => {
+    //    winston.error("#############")
+    //})
+
     return promise
 }
 
