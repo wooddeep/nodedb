@@ -7,59 +7,69 @@ const tools = require('./tools')
 const assert = require('assert');
 
 const bptree = new Bptree()
-
 const buffer = new Buffer(1)
 
-async function fileOperTest() {
-    let fd = await fileops.openFile("lee.db")
-    const buffer = Buffer.alloc(10);
-    buffer.write("helloworld")
-    await fileops.writeFile(fd, buffer, 0, 10)
-    await fileops.closeFile(fd)
-    let exists = await fileops.existFile("lee.db")
-    winston.info(exists)
-}
-
-async function writeTest(upper, lower) {
-    for (var value = upper; value >= lower; value--) {
-        let kbuf = tools.buffer(value)
-        await bptree.insert(kbuf, value)
+async function writeRange(a, b) {
+    if (a >= b) {
+        for (var value = a; value >= b; value--) {
+            let kbuf = tools.buffer(value)
+            await bptree.insert(kbuf, value)
+        }
+    } else {
+        for (var value = a; value <= b; value++) {
+            let kbuf = tools.buffer(value)
+            await bptree.insert(kbuf, value)
+        }
     }
 }
 
-async function writeOneTest(value) {
+async function writeOne(value) {
     let kbuf = tools.buffer(value)
     await bptree.insert(kbuf, value)
 }
 
-async function findTest(key) {
+async function find(key) {
     let kbuf = tools.buffer(key)
     let value = bptree.select(kbuf)
     winston.info("value = " + value)
     return value
 }
 
-async function removeOneTest(key) {
+async function removeOne(key) {
     let kbuf = tools.buffer(key)
     bptree.remove(kbuf)
 }
 
-async function removeTest(keys) {
+async function removeAny(keys) {
     keys.forEach(key => {
+        winston.error(`to delete: key = ${key}`)
         let kbuf = tools.buffer(key)
         bptree.remove(kbuf)
-        winston.warn(`delete: key = ${key}`)
     })
+}
+
+async function removeRange(a, b) {
+    if (a >= b) {
+        for (var value = a; value >= b; value--) {
+            let kbuf = tools.buffer(value)
+            await bptree.remove(kbuf, value)
+        }
+    } else {
+        for (var value = a; value <= b; value++) {
+            let kbuf = tools.buffer(value)
+            await bptree.remove(kbuf, value)
+        }
+    }
 }
 
 async function test0() {
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
-    await writeTest(100, 80)
+    await writeRange(100, 80)
     await bptree.dump()
     await bptree.flush()
-    let value = await findTest(100)
+    let value = await find(100)
     assert.equal(value, 100)
 }
 
@@ -68,13 +78,12 @@ async function test1() {
     await bptree.drop(dbname)
     await bptree.init(dbname)
 
-    await writeTest(100, 97)
-    await removeTest([100, 99, 98, 97])
-    await writeOneTest(100)
-    await writeOneTest(99)
+    await writeRange(100, 97)
+    await removeAny([100, 99, 98, 97])
+    await writeOne(100)
+    await writeOne(99)
 
-
-    let value = await findTest(100)
+    let value = await find(100)
     assert.equal(value, 100)
 
     value = await findTest(98)
@@ -95,10 +104,10 @@ async function test2() {
 
     await bptree.init(dbname)
 
-    await writeTest(100, 0)
+    await writeRange(1000, 0)
 
-    for (var i = 0; i < 100; i++) {
-        let value = await findTest(i)
+    for (var i = 0; i < 1000; i++) {
+        let value = await find(i)
         assert.equal(value, i)
     }
 
@@ -107,8 +116,31 @@ async function test2() {
     await bptree.close()
 }
 
-const funcList = [test0, test1, test2]
-const filterOut = [test0, test1]
+
+async function test3() {
+    let dbname = "test.db"
+    try {
+        await bptree.drop(dbname)
+    } catch (e) {
+        winston.warn(`drop error!`)
+    }
+
+    await bptree.init(dbname)
+
+    await writeRange(1000, 0)
+    for (var i = 0; i < 1000; i++) {
+        let value = await find(i)
+        assert.equal(value, i)
+    }
+
+    await removeRange(1000, 0)
+
+    await bptree.flush()
+    await bptree.close()
+}
+
+const funcList = [test0, test1, test2, test3]
+const filterOut = [test0, test1, test2]
 
 funcList.filter(x => !filterOut.includes(x)).forEach(func => func())
 

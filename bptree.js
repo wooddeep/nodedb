@@ -60,6 +60,14 @@ const pageMap = {} // 页表
 var freeNext = 0
 var freePrev = 0
 
+Buffer.prototype.compare = function (to) {
+    let left = this.readInt32LE(0)
+    let right = to.readInt32LE(0)
+    if (left == right) return 0
+    if (left > right) return 1
+    else return -1
+}
+
 class Bptree {
 
     appendFreeNode(id) {
@@ -374,7 +382,7 @@ class Bptree {
         page.ocnt++
         key.copy(page.cells[ORDER_NUM - 1].key, 0, 0, KEY_MAX_LEN)    // TODO ORDER_NUM -> KEY_MAX_LEN
         let childIndex = page.cells[ORDER_NUM - 1].index
-        winston.error(`childIndex = ${childIndex}`)
+        //winston.error(`childIndex = ${childIndex}`)
         if (childIndex > 0 && pageMap[childIndex].type > NODE_TYPE_LEAF) {
             this.updateMaxToLeaf(pageMap[childIndex], key)
         }
@@ -394,7 +402,7 @@ class Bptree {
             upParent = true
         }
 
-        if (upParent && pageMap[page.parent] != undefined) {
+        if (upParent && pageMap[page.parent] != undefined && pcell == ORDER_NUM - 1) {
             this.updateMaxToRoot(pageMap[page.parent], page.pcell, old, now)
         }
 
@@ -459,18 +467,15 @@ class Bptree {
     }
 
     shrink(page) {
+        this.appendFreeNode(page.index) // 把自己加入到空闲链表
         let parent = pageMap[page.parent]
-        if (page.type == NODE_TYPE_LEAF && parent.prev == -1
-            && parent.next == -1 && page.type != NODE_TYPE_ROOT) {
-            appendFreeNode(page.id) // 加入到空闲链表
-            parent.used = page.used
-            for (var i = 0; i < page.used; i++) {
-                parent.cells[ORDER_NUM - 1 - i] = _page.newCell(
-                    page.cells[ORDER_NUM - 1 - i].key,
-                    page.cells[ORDER_NUM - 1 - i].value
-                )
-            }
+        parent.cells.splice(page.pcell, 1)
+        parent.used--
+        parent.cells.splice(0, 0, _page.newCell()) // 从左侧补充一个
+        if (parent.used == 0 && parent.type != NODE_TYPE_ROOT) {
+            this.shrink(parent)
         }
+
     }
 
 
@@ -554,7 +559,7 @@ class Bptree {
         // 更新parent对应child的kv的pcell
         this.setChildPcell(parent)
 
-        if (parent.used < MORE_HALF_NUM) { // 判断是否需要对parent进行借用或者合并
+        if (parent.used < MORE_HALF_NUM && parent.used > 0) { // 判断是否需要对parent进行借用或者合并
             if (parent.type < NODE_TYPE_ROOT) {
                 let ret = this.mergeOrBorrow(parent)
                 if (ret.method == "merge") {
@@ -563,10 +568,8 @@ class Bptree {
                 if (ret.method == "borrow") {
                     this.borrow(parent, pageMap[ret.index])
                 }
-                if (ret.method == "shrink") {
-                    this.shrink(parent)
-                }
 
+                process.stdout.write("# ")
                 winston.error(ret);
             } else {
                 winston.error("root not need merge!!!");
@@ -640,6 +643,12 @@ class Bptree {
     }
 
     remove(kbuf) {
+        let tmp = Buffer.alloc(KEY_MAX_LEN)
+        tmp.writeInt32LE(492)
+        if (kbuf.compare(tmp) == 0) {
+            console.log("capture!")
+        }
+
         if (kbuf.compare(rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大值
             winston.error(`key: ${tools.int32le(kbuf)} not found`)
             return false
@@ -659,35 +668,32 @@ class Bptree {
             return false
         }
 
-        // 开始进行实际的删除操作
+        // 1. 开始进行实际的删除操作
         targetPage.dirty = true
         targetPage.ocnt++
         let old = targetPage.cells[ORDER_NUM - 1].key
         targetPage.cells.splice(cellIndex, 1) // 删除从cellIndex下标开始的1个元素
         targetPage.used-- // 减去使用的个数
+
+        if (targetPage.used == 0) {
+            this.shrink(targetPage)
+        }
+
         if (targetPage.cells.length < ORDER_NUM) { // 删除使数据槽位变少
             let cell = _page.newCell()
             targetPage.cells.splice(0, 0, cell) // 则需要从左侧补充一个
         }
 
-        // 1. 若删除的值是该页的最大值，则需要更新父节点的kv值
-        if (cellIndex == ORDER_NUM - 1) {
+        // 2. 若删除的值是该页的最大值，则需要更新父节点的kv值
+        if (cellIndex == ORDER_NUM - 1 && targetPage.used > 0) {
             let now = targetPage.cells[ORDER_NUM - 1].key
             let ppage = pageMap[targetPage.parent]
-            if (now.compare(old) != 0 && targetPage.used > 0) { // 值不一样则更新, 且本页有cell被使用
+            if (now.compare(old) != 0) { // 值不一样则更新, 且本页有cell被使用
                 this.updateMaxToRoot(ppage, targetPage.pcell, old, now)
-            }
-
-            if (targetPage.used == 0) {
-                this.appendFreeNode(targetPage.index)
-                ppage.cells.splice(targetPage.pcell, 1) // 父节点中cell删除一个
-                ppage.used--
-                ppage.cells.splice(0, 0, _page.newCell()) // 则需要从左侧补充一个
-                this.setChildPcell(ppage)
             }
         }
 
-        // 删除数据后，节点的使用数目小于 MORE_HALF_NUM, 则需要归并或借用
+        // 3. 删除数据后，节点的使用数目小于 MORE_HALF_NUM, 则需要归并或借用
         if (targetPage.used < MORE_HALF_NUM && targetPage.used > 0) {
             let ret = this.mergeOrBorrow(targetPage)
             if (ret.method == "merge") {
@@ -696,11 +702,11 @@ class Bptree {
             if (ret.method == "borrow") {
                 this.borrow(targetPage, pageMap[ret.index])
             }
-            if (ret.method == "shrink") {
-                this.shrink(targetPage)
-            }
+
+            process.stdout.write("* ")
             winston.error(ret);
         }
+
     }
 
     async flush() {
