@@ -127,13 +127,13 @@ async function test3() {
 
     await bptree.init(dbname)
 
-    await writeRange(1000, 0)
+    await writeRange(0, 1000)
     for (var i = 0; i < 1000; i++) {
         let value = await find(i)
         assert.equal(value, i)
     }
 
-    await removeRange(1000, 0)
+    await removeRange(0, 1000)
 
     await bptree.flush()
     await bptree.close()

@@ -209,10 +209,11 @@ class Bptree {
             pageIndex = cells[maxIndex].index
             cellIndex = maxIndex
         }
-        if (key.compare(cells[0].key) <= 0) { //  小于最小键值
+        let minIndx = currPage.used > 0 ? ORDER_NUM - currPage.used : ORDER_NUM - 1
+        if (key.compare(cells[minIndx].key) <= 0) { //  小于最小键值
             found = false
-            pageIndex = cells[0].index
-            cellIndex = 0
+            pageIndex = cells[minIndx].index
+            cellIndex = minIndx
         }
         if (!found) {
             if (pageIndex == 0) { // 说明还没有分配叶子值
@@ -275,6 +276,11 @@ class Bptree {
      * 如果targetPage的type为叶节点，则value代表具体值，如果type非叶子节点，则value则为子节点索引
      */
     innerInsert(targetPage, key, value) {
+
+        if (targetPage.type == NODE_TYPE_LEAF && value == 1) {
+            debugger
+        }
+
         // 插入
         targetPage.dirty = true
         targetPage.ocnt++
