@@ -15,6 +15,9 @@ const PAGE_PREV_IDX_LEN = 4   // 弟节点索引的字节数
 const PARENT_CELL_IDX_LEN = 2 // 父节点CELL的索引
 const CELL_USED_LEN = 2       // 使用键值数的字节数
 
+const LOC_FOR_INSERT = 0
+const LOC_FOR_SELECT = 1
+const LOC_FOR_DELETE = 2
 
 const PAGE_TYPE_OFFSET = 0    // 页类型页内偏移
 const PAGE_PARENT_OFFSET = PAGE_TYPE_OFFSET + PAGE_TYPE_LEN       // 页类型页内偏移
@@ -59,6 +62,9 @@ var constant = {
     PAGE_PREV_OFFSET: PAGE_PREV_OFFSET,
     PARENT_CELL_OFFSET: PARENT_CELL_OFFSET,
     CELL_USED_OFFSET: CELL_USED_OFFSET,
+    LOC_FOR_INSERT: LOC_FOR_INSERT,
+    LOC_FOR_SELECT: LOC_FOR_SELECT,
+    LOC_FOR_DELETE: LOC_FOR_DELETE
 }
 
 module.exports = constant;

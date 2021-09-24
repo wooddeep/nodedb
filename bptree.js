@@ -46,6 +46,9 @@ const {
     PAGE_NEXT_OFFSET,
     PAGE_PREV_OFFSET,
     CELL_USED_OFFSET,
+    LOC_FOR_INSERT,
+    LOC_FOR_SELECT,
+    LOC_FOR_DELETE
 } = require("./const.js")
 
 const winston = require('./winston/config')
@@ -195,7 +198,10 @@ class Bptree {
     /*
      * 定位叶子页节点
      */
-    locateLeaf(key, currPage) {
+    locateLeaf(key, currPage, locType = LOC_FOR_INSERT) {
+        if (key.readInt32LE(0) == 90 ) {
+            console.log("capture")
+        }
         let cells = currPage.cells
         let maxIndex = cells.length - 1
 
@@ -210,11 +216,17 @@ class Bptree {
             cellIndex = maxIndex
         }
         let minIndx = currPage.used > 0 ? ORDER_NUM - currPage.used : ORDER_NUM - 1
-        if (key.compare(cells[minIndx].key) <= 0) { //  小于最小键值
-            found = false
+        if (key.compare(cells[minIndx].key) <= 0) {
             pageIndex = cells[minIndx].index
-            cellIndex = minIndx
+            if (locType == LOC_FOR_INSERT) { //  小于最小键值
+                cellIndex = minIndx
+                found = false
+            }
+            if (locType != LOC_FOR_INSERT) { // 查找時候, 小於最小值, 視為已經查找到
+                return this.locateLeaf(key, pageMap[pageIndex], locType)
+            }
         }
+
         if (!found) {
             if (pageIndex == 0) { // 说明还没有分配叶子值
                 let page = this.fetchPageNode(NODE_TYPE_LEAF) // 生成叶子节点
@@ -231,14 +243,14 @@ class Bptree {
                 currPage.ocnt++
                 return page
             } else {
-                return this.locateLeaf(key, pageMap[pageIndex]) // 子页面节点查找
+                return this.locateLeaf(key, pageMap[pageIndex], locType) // 子页面节点查找
             }
         }
 
         for (var index = maxIndex; index >= 1; index--) { // TODO: 折半查找法
             if (key.compare(cells[index].key) <= 0 && key.compare(cells[index - 1].key) > 0) { // 查找到
                 let page = pageMap[cells[index].index]
-                return this.locateLeaf(key, page)
+                return this.locateLeaf(key, page, locType)
             }
         }
     }
@@ -276,11 +288,6 @@ class Bptree {
      * 如果targetPage的type为叶节点，则value代表具体值，如果type非叶子节点，则value则为子节点索引
      */
     innerInsert(targetPage, key, value) {
-
-        if (targetPage.type == NODE_TYPE_LEAF && value == 1) {
-            debugger
-        }
-
         // 插入
         targetPage.dirty = true
         targetPage.ocnt++
@@ -350,7 +357,11 @@ class Bptree {
                 brotherPage.dirty = true
                 this.rebuildRoot(targetPage, brotherPage, movePage) // 设置根节点的cell
                 return
+            } else { // 更新targetCell對應的max值
+                let oldKey = pageMap[targetPage.parent].cells[targetPage.pcell].key
+                this.updateMaxToRoot(pageMap[targetPage.parent], targetPage.pcell, oldKey, targetPage.cells[ORDER_NUM - 1].key)
             }
+
             // 2. 新页的键值和页号(index)插入到父节点
             this.innerInsert(pageMap[brotherPage.parent], brotherPage.cells[ORDER_NUM - 1].key, brotherPage.index)
 
@@ -415,15 +426,16 @@ class Bptree {
     }
 
     insert(key, value) {
-        let targetPage = this.locateLeaf(key, rootPage) // 目标叶子节点
+        let targetPage = this.locateLeaf(key, rootPage, LOC_FOR_INSERT) // 目标叶子节点
         this.innerInsert(targetPage, key, value)
         if (this.needUpdateMax(key)) {
             this.updateMaxToLeaf(rootPage, key)
         }
+        console.log(pageMap[0])
     }
 
     select(key) {
-        let targetPage = this.locateLeaf(key, rootPage) // 目标叶子节点
+        let targetPage = this.locateLeaf(key, rootPage, LOC_FOR_SELECT) // 目标叶子节点
         for (var i = ORDER_NUM - 1; i >= 0; i--) {
             if (key.compare(targetPage.cells[i].key) == 0) { // 找到位置
                 return targetPage.cells[i].index
@@ -660,7 +672,7 @@ class Bptree {
             return false
         }
 
-        let targetPage = this.locateLeaf(kbuf, rootPage) // 目标叶子节点
+        let targetPage = this.locateLeaf(kbuf, rootPage, LOC_FOR_DELETE) // 目标叶子节点
         let cellIndex = undefined
         for (var i = ORDER_NUM - 1; i >= 0; i--) {
             if (kbuf.compare(targetPage.cells[i].key) == 0) { // 找到位置
