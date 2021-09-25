@@ -185,6 +185,9 @@ class Bptree {
 
         left.pcell = ORDER_NUM - 2
         right.pcell = ORDER_NUM - 1
+        this.setChildPcell(left)
+        this.setChildPcell(right)
+
         left.dirty = true
         right.dirty = true
 
@@ -199,7 +202,7 @@ class Bptree {
      * 定位叶子页节点
      */
     locateLeaf(key, currPage, locType = LOC_FOR_INSERT) {
-        if (key.readInt32LE(0) == 90 ) {
+        if (key.readInt32LE(0) == 90) {
             console.log("capture")
         }
         let cells = currPage.cells
@@ -257,6 +260,7 @@ class Bptree {
 
     /*
      * 查找cells的插入位置
+     * 如果page的类型为NODE_TYPE_LEAF, 则pos随便插入, 否则需要比较值页内值
      */
     findInsertPos(key, page) {
         for (var i = ORDER_NUM - 1; i >= 0; i--) {
@@ -287,11 +291,13 @@ class Bptree {
     /*
      * 如果targetPage的type为叶节点，则value代表具体值，如果type非叶子节点，则value则为子节点索引
      */
-    innerInsert(targetPage, key, value) {
+    innerInsert(targetPage, key, value, pos = -1) {
         // 插入
         targetPage.dirty = true
         targetPage.ocnt++
-        let pos = this.findInsertPos(key, targetPage) // 找到插入的cell槽位
+        if (pos == -1) {
+            pos = this.findInsertPos(key, targetPage) // 找到插入的cell槽位
+        }
         targetPage.cells.splice(pos, 0, _page.newCell(key, value)) //  插入：splice(pos, <delete num> , value)
         targetPage.used++
         if (targetPage.used <= ORDER_NUM) {
@@ -357,16 +363,13 @@ class Bptree {
                 brotherPage.dirty = true
                 this.rebuildRoot(targetPage, brotherPage, movePage) // 设置根节点的cell
                 return
-            } else { // 更新targetCell對應的max值
-                let oldKey = pageMap[targetPage.parent].cells[targetPage.pcell].key
-                this.updateMaxToRoot(pageMap[targetPage.parent], targetPage.pcell, oldKey, targetPage.cells[ORDER_NUM - 1].key)
             }
 
             // 2. 新页的键值和页号(index)插入到父节点
-            this.innerInsert(pageMap[brotherPage.parent], brotherPage.cells[ORDER_NUM - 1].key, brotherPage.index)
+            this.innerInsert(pageMap[brotherPage.parent], brotherPage.cells[ORDER_NUM - 1].key, brotherPage.index, targetPage.pcell)
 
             // 3. 重建brother pcell
-            if (brotherPage.type > NODE_TYPE_LEAF) {
+            if (brotherPage.type > NODE_TYPE_LEAF) { // 非叶子节点
                 this.setChildPcell(brotherPage)
             } else {
                 let parent = pageMap[brotherPage.parent]
@@ -431,7 +434,7 @@ class Bptree {
         if (this.needUpdateMax(key)) {
             this.updateMaxToLeaf(rootPage, key)
         }
-        console.log(pageMap[0])
+        //console.log("----")
     }
 
     select(key) {

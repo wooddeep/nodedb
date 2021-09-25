@@ -11,6 +11,8 @@
   "dependencies": {
     "@palerock/annotate-js": "^1.2.42",
     "app-root-path": "^3.0.0",
+    "cnpm": "^7.0.0",
+    "color-string": "^1.6.0",
     "winston": "^3.3.3"
   }
 }

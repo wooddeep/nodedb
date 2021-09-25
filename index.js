@@ -30,7 +30,9 @@ async function writeOne(value) {
 
 async function writeAny(keys) {
     keys.forEach(key => {
-        winston.error(`to write: key = ${key}`)
+        if (key == 26) {
+            winston.error(`to write: key = ${key}`)
+        }
         let kbuf = tools.buffer(key)
         bptree.insert(kbuf, key)
     })
@@ -153,11 +155,12 @@ function random(min, max) {
 
 /* dynamic data insert and delete test! */
 async function test4() {
-
-    let array = [58,58,55,90,36,84,96,79,25,87,32,39,24,11,36,61,59,7,89,64] // 出錯的數組
-    let number = array.length
-    for (var i = 0; i < number; i++) {
-        //array.push(random(0, 100))
+    let array = []
+    let number = array.length > 0 ? array.length : 100
+    if (array.length == 0) {
+        for (var i = 0; i < number; i++) {
+            array.push(random(0, 1000))
+        }
     }
     winston.error(array)
 
@@ -169,21 +172,17 @@ async function test4() {
     }
 
     await bptree.init(dbname)
-
     await writeAny(array)
-
-    //let value = await find(55)
 
     for (var i = 0; i < number; i++) {
         let key = array[i]
         let value = await find(key)
         winston.error(`# find: key:${key} => value:${value}`)
-        //assert.equal(value, key)
+        assert.equal(value, key)
     }
 
-    //await removeAny(array)
-
-    await bptree.flush()
+    await removeAny(array)
+    //await bptree.flush()
     await bptree.close()
 }
 
