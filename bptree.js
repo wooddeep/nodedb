@@ -508,7 +508,7 @@ class Bptree {
         if (from.next == to.index) { // 向兄节点merge，本页的值小于兄节点的值
             for (var i = 0; i < from.used; i++) {
                 let fromCell = from.cells[ORDER_NUM - 1 - i]
-                to.cells.splice(ORDER_NUM - 1 - to.used - i, 1, fromCell) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
+                to.cells.splice(ORDER_NUM - 1 - to.used, 1, fromCell) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
                 to.used++
             }
 
@@ -664,7 +664,7 @@ class Bptree {
     remove(kbuf) {
 
         if (kbuf.compare(rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大值
-            winston.error(`key: ${tools.int32le(kbuf)} not found`)
+            winston.error(`[0] key: ${tools.int32le(kbuf)} not found`)
             return false
         }
 
@@ -678,7 +678,7 @@ class Bptree {
         }
 
         if (cellIndex == undefined) { // 未找到数据
-            winston.error(`key：${tools.int32le(kbuf)} not found`)
+            winston.error(`[1] key：${tools.int32le(kbuf)} not found`)
             return false
         }
 

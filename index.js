@@ -38,6 +38,9 @@ async function writeAny(keys) {
 async function find(key) {
     let kbuf = tools.buffer(key)
     let value = bptree.select(kbuf)
+    if (value == undefined) {
+        console.log("#####")
+    }
     winston.info("value = " + value)
     return value
 }
@@ -159,10 +162,11 @@ async function test4() {
     // [56,13,419,741,820,564,737,612,703,581,805,587,789,642,616,869,981,259,479,54]
     // [25,29,72,94,71,26,17,96,22,86,1,22,13,69,62,95,24,22,34,81]
     let array = [] //[25, 29, 72, 94, 71, 26, 17, 96, 22, 86, 1, 22, 13, 69, 62, 95, 24, 22, 34, 81]
+    //array = [44, 42, 44, 48, 19, 2, 15, 87, 29, 24, 60, 40, 75, 56, 83, 46, 85, 41, 94, 62]
     let number = array.length > 0 ? array.length : 1000
     if (array.length == 0) {
         for (var i = 0; i < number; i++) {
-            array.push(random(0, 100))
+            array.push(random(0, 1000))
         }
     }
     winston.error(array)
@@ -180,12 +184,12 @@ async function test4() {
     for (var i = 0; i < number; i++) {
         let key = array[i]
         let value = await find(key)
-        winston.info(`# find: key:${key} => value:${value}`)
+        winston.error(`# find: key:${key} => value:${value}`)
         assert.equal(value, key)
     }
 
     await removeAny(array)
-    //await bptree.flush()
+    await bptree.flush()
     await bptree.close()
 }
 

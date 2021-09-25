@@ -3,7 +3,7 @@
  * History: create at 20210811
  */
 
-const PAGE_SIZE = 64     // 页大小
+const PAGE_SIZE = 1024     // 页大小
 const START_OFFSET = 0   // 起始偏移量
 const KEY_MAX_LEN = 10   // 键值最大长度
 const VAL_IDX_LEN = 4    // 值页索引长度, 如果中间节点指向子页面, 叶子节点指向值
