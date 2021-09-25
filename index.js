@@ -193,8 +193,46 @@ async function test4() {
     await bptree.close()
 }
 
-const funcList = [test0, test1, test2, test3, test4]
-const filterOut = [test0, test1, test2, test3]
+async function test5() {
+    let array = []
+    let number = array.length > 0 ? array.length : 1000
+    if (array.length == 0) {
+        for (var i = 0; i < number; i++) {
+            array.push(random(0, 1000))
+        }
+    }
+    winston.error(array)
+
+    let dbname = "test.db"
+    try {
+        await bptree.drop(dbname)
+    } catch (e) {
+        winston.warn(`drop error!`)
+    }
+
+    await bptree.init(dbname)
+    await writeAny(array)
+
+    for (var i = 0; i < number; i++) {
+        let key = array[i]
+        let value = await find(key)
+        winston.info(`# find: key:${key} => value:${value}`)
+        assert.equal(value, key)
+    }
+
+    for (var i = 0; i < number; i++) {
+        let pos = random(0, array.length - 1)
+        let key = array[pos]
+        let value = await removeOne(key) 
+        array.splice(pos, 1)
+    }
+
+    await bptree.flush()
+    await bptree.close()
+}
+
+const funcList = [test0, test1, test2, test3, test4, test5]
+const filterOut = [test0, test1, test2, test3, test4]
 
 funcList.filter(x => !filterOut.includes(x)).forEach(func => func())
 
