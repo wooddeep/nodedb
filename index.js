@@ -30,9 +30,6 @@ async function writeOne(value) {
 
 async function writeAny(keys) {
     keys.forEach(key => {
-        if (key == 96) {
-            winston.error(`to write: key = ${key}`)
-        }
         let kbuf = tools.buffer(key)
         bptree.insert(kbuf, key)
     })
@@ -53,9 +50,6 @@ async function removeOne(key) {
 async function removeAny(keys) {
     keys.forEach(key => {
         try {
-            if (key == 72) {
-                winston.info("")
-            }
             let kbuf = tools.buffer(key)
             bptree.remove(kbuf)
             winston.info(`# delete: key = ${key} ok`)
@@ -164,8 +158,8 @@ function random(min, max) {
 async function test4() {
     // [56,13,419,741,820,564,737,612,703,581,805,587,789,642,616,869,981,259,479,54]
     // [25,29,72,94,71,26,17,96,22,86,1,22,13,69,62,95,24,22,34,81]
-    let array = [25, 29, 72, 94, 71, 26, 17, 96, 22, 86, 1, 22, 13, 69, 62, 95, 24, 22, 34, 81]
-    let number = array.length > 0 ? array.length : 20
+    let array = [] //[25, 29, 72, 94, 71, 26, 17, 96, 22, 86, 1, 22, 13, 69, 62, 95, 24, 22, 34, 81]
+    let number = array.length > 0 ? array.length : 1000
     if (array.length == 0) {
         for (var i = 0; i < number; i++) {
             array.push(random(0, 100))
@@ -186,7 +180,7 @@ async function test4() {
     for (var i = 0; i < number; i++) {
         let key = array[i]
         let value = await find(key)
-        winston.error(`# find: key:${key} => value:${value}`)
+        winston.info(`# find: key:${key} => value:${value}`)
         assert.equal(value, key)
     }
 
