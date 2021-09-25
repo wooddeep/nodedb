@@ -202,9 +202,7 @@ class Bptree {
      * 定位叶子页节点
      */
     locateLeaf(key, currPage, locType = LOC_FOR_INSERT) {
-        if (key.readInt32LE(0) == 90) {
-            console.log("capture")
-        }
+
         let cells = currPage.cells
         let maxIndex = cells.length - 1
 
@@ -402,7 +400,7 @@ class Bptree {
         page.ocnt++
         key.copy(page.cells[ORDER_NUM - 1].key, 0, 0, KEY_MAX_LEN)    // TODO ORDER_NUM -> KEY_MAX_LEN
         let childIndex = page.cells[ORDER_NUM - 1].index
-        //winston.error(`childIndex = ${childIndex}`)
+
         if (childIndex > 0 && pageMap[childIndex].type > NODE_TYPE_LEAF) {
             this.updateMaxToLeaf(pageMap[childIndex], key)
         }
@@ -434,7 +432,6 @@ class Bptree {
         if (this.needUpdateMax(key)) {
             this.updateMaxToLeaf(rootPage, key)
         }
-        //console.log("----")
     }
 
     select(key) {
@@ -590,10 +587,10 @@ class Bptree {
                     this.borrow(parent, pageMap[ret.index])
                 }
 
-                process.stdout.write("# ")
-                winston.error(ret);
+                //process.stdout.write("# ")
+                winston.info(ret);
             } else {
-                winston.error("root not need merge!!!");
+                winston.info("root not need merge!!!");
             }
         }
     }
@@ -651,6 +648,7 @@ class Bptree {
         // 更新所有kv的pcell
         if (to.type > NODE_TYPE_LEAF) {
             this.setChildPcell(to)
+            this.setChildPcell(from)
         }
 
         // 2. 把from页面子节点的父节点索引替换成to页面的索引
@@ -664,11 +662,6 @@ class Bptree {
     }
 
     remove(kbuf) {
-        let tmp = Buffer.alloc(KEY_MAX_LEN)
-        tmp.writeInt32LE(492)
-        if (kbuf.compare(tmp) == 0) {
-            console.log("capture!")
-        }
 
         if (kbuf.compare(rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大值
             winston.error(`key: ${tools.int32le(kbuf)} not found`)
@@ -724,8 +717,8 @@ class Bptree {
                 this.borrow(targetPage, pageMap[ret.index])
             }
 
-            process.stdout.write("* ")
-            winston.error(ret);
+            //process.stdout.write("* ")
+            winston.info(ret);
         }
 
     }

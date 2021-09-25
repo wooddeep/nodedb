@@ -30,7 +30,7 @@ async function writeOne(value) {
 
 async function writeAny(keys) {
     keys.forEach(key => {
-        if (key == 26) {
+        if (key == 96) {
             winston.error(`to write: key = ${key}`)
         }
         let kbuf = tools.buffer(key)
@@ -52,9 +52,16 @@ async function removeOne(key) {
 
 async function removeAny(keys) {
     keys.forEach(key => {
-        winston.error(`to delete: key = ${key}`)
-        let kbuf = tools.buffer(key)
-        bptree.remove(kbuf)
+        try {
+            if (key == 72) {
+                winston.info("")
+            }
+            let kbuf = tools.buffer(key)
+            bptree.remove(kbuf)
+            winston.info(`# delete: key = ${key} ok`)
+        } catch (e) {
+            winston.error(`# delete: key = ${key} error`)
+        }
     })
 }
 
@@ -155,11 +162,13 @@ function random(min, max) {
 
 /* dynamic data insert and delete test! */
 async function test4() {
-    let array = []
-    let number = array.length > 0 ? array.length : 100
+    // [56,13,419,741,820,564,737,612,703,581,805,587,789,642,616,869,981,259,479,54]
+    // [25,29,72,94,71,26,17,96,22,86,1,22,13,69,62,95,24,22,34,81]
+    let array = [25, 29, 72, 94, 71, 26, 17, 96, 22, 86, 1, 22, 13, 69, 62, 95, 24, 22, 34, 81]
+    let number = array.length > 0 ? array.length : 20
     if (array.length == 0) {
         for (var i = 0; i < number; i++) {
-            array.push(random(0, 1000))
+            array.push(random(0, 100))
         }
     }
     winston.error(array)
