@@ -48,7 +48,10 @@ const {
     CELL_USED_OFFSET,
     LOC_FOR_INSERT,
     LOC_FOR_SELECT,
-    LOC_FOR_DELETE
+    LOC_FOR_DELETE,
+    TRANS_MERGE,
+    TRANS_BORROW,
+    TRANS_SHRINK
 } = require("./const.js")
 
 const winston = require('./winston/config')
@@ -447,17 +450,17 @@ class Bptree {
     /*
      * 判断是否需要与兄弟节点进行合并，或者从兄弟节点借数
      */
-    mergeOrBorrow(page) {
+    transDecide(page) {
         if (page.prev > 0) {
             let prevIndex = page.prev
             if (pageMap[prevIndex].used + page.used <= ORDER_NUM) {
                 return {
-                    "method": "merge",
+                    "method": TRANS_MERGE,
                     "index": prevIndex,
                 }
             } else {
                 return {
-                    "method": "borrow",
+                    "method": TRANS_BORROW,
                     "index": prevIndex,
                 }
             }
@@ -467,19 +470,19 @@ class Bptree {
             let nextIndex = page.next
             if (pageMap[nextIndex].used + page.used <= ORDER_NUM) {
                 return {
-                    "method": "merge",
+                    "method": TRANS_MERGE,
                     "index": nextIndex,
                 }
             } else {
                 return {
-                    "method": "borrow",
+                    "method": TRANS_BORROW,
                     "index": nextIndex,
                 }
             }
         }
 
         return {  // 没有兄弟节点, 则保持不动, 或者向上收缩
-            "method": "shrink",
+            "method": TRANS_SHRINK,
             "index": page.index,
         }
     }
@@ -579,11 +582,11 @@ class Bptree {
 
         if (parent.used < MORE_HALF_NUM && parent.used > 0) { // 判断是否需要对parent进行借用或者合并
             if (parent.type < NODE_TYPE_ROOT) {
-                let ret = this.mergeOrBorrow(parent)
-                if (ret.method == "merge") {
+                let ret = this.transDecide(parent)
+                if (ret.method == TRANS_MERGE) {
                     this.merge(parent, pageMap[ret.index])
                 }
-                if (ret.method == "borrow") {
+                if (ret.method == TRANS_BORROW) {
                     this.borrow(parent, pageMap[ret.index])
                 }
 
@@ -709,11 +712,11 @@ class Bptree {
 
         // 3. 删除数据后，节点的使用数目小于 MORE_HALF_NUM, 则需要归并或借用
         if (targetPage.used < MORE_HALF_NUM && targetPage.used > 0) {
-            let ret = this.mergeOrBorrow(targetPage)
-            if (ret.method == "merge") {
+            let ret = this.transDecide(targetPage)
+            if (ret.method == TRANS_MERGE) {
                 this.merge(targetPage, pageMap[ret.index])
             }
-            if (ret.method == "borrow") {
+            if (ret.method == TRANS_BORROW) {
                 this.borrow(targetPage, pageMap[ret.index])
             }
 
