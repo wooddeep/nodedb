@@ -2,12 +2,12 @@ const winston = require('./winston/config');
 const Bptree = require("./bptree.js");
 const fileops = require("./fileops.js");
 const constant = require("./const.js");
-const Buffer = require("./buffer.js");
+const PageBuff = require("./pbuff.js");
 const tools = require('./tools')
 const assert = require('assert');
 
 const bptree = new Bptree()
-const buffer = new Buffer(1)
+//const buffer = new PageBuff(1)
 
 async function writeRange(a, b) {
     if (a >= b) {
@@ -232,7 +232,10 @@ async function test5() {
 }
 
 const funcList = [test0, test1, test2, test3, test4, test5]
-const filterOut = [test0, test1, test2, test3, test4]
+const filterOut = [test0, test1, test2]
 
-funcList.filter(x => !filterOut.includes(x)).forEach(func => func())
+//funcList.filter(x => !filterOut.includes(x)).forEach(async func => await func())
 
+//test3()
+test5()
+//test5()
