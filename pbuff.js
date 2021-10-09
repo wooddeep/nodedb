@@ -61,16 +61,7 @@ class PageBuff {
         }
 
         if (target != undefined) {
-            if (inuse) {
-                if (target.inuse == undefined) {
-                    target.inuse = 1
-                } else {
-                    target.inuse++
-                }
-            } else {
-                target.inuse = 0
-            }
-
+            target.inuse = inuse
             target.dirty = dirty
         }
 
@@ -82,7 +73,7 @@ class PageBuff {
 
         let size = Object.getOwnPropertyNames(PageBuff.map).length
         if (size > this.size) { 
-            let nouse = Object.keys(PageBuff.map).filter(x => x != 0).filter(x => PageBuff.map[x].inuse == 0)
+            let nouse = Object.keys(PageBuff.map).filter(x => x != 0).filter(x => PageBuff.map[x].inuse == false)
             winston.error(`# nouse = ${nouse}`)
             if (nouse.length > 0) {
                 let page = PageBuff.map[nouse[0]]
@@ -91,7 +82,7 @@ class PageBuff {
                 await fileops.writeFile(this.fd, buff, 0, PAGE_SIZE, page.index * PAGE_SIZE)
                 delete PageBuff.map[nouse[0]]
             } else {
-                winston.error("## buff size is insufficent!")
+                winston.error("@@@@ buff size is insufficent!")
                 this.size++
             }
         }

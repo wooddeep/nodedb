@@ -176,11 +176,11 @@ class Page {
     }
 
     occupy() {
-        this.inuse++
+        this.inuse = true
     }
 
     release() {
-        this.inuse--
+        this.inuse = false
     }
 }
 
