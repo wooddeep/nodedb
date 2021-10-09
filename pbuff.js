@@ -6,27 +6,7 @@ const _page = new Page() // 默认构造函数
 
 const {
     START_OFFSET,
-    KEY_MAX_LEN,
     PAGE_SIZE,
-    ORDER_NUM,
-    CELL_LEN,
-    CELL_OFFSET,
-    MORE_HALF_NUM,
-    NODE_TYPE_LEAF,
-    NODE_TYPE_STEM,
-    NODE_TYPE_ROOT,
-    NODE_TYPE_FREE,
-    PAGE_TYPE_OFFSET,
-    PAGE_PARENT_OFFSET,
-    PAGE_NEXT_OFFSET,
-    PAGE_PREV_OFFSET,
-    CELL_USED_OFFSET,
-    LOC_FOR_INSERT,
-    LOC_FOR_SELECT,
-    LOC_FOR_DELETE,
-    TRANS_MERGE,
-    TRANS_BORROW,
-    TRANS_SHRINK
 } = require("./const.js")
 
 class PageBuff {
@@ -37,10 +17,6 @@ class PageBuff {
 
     setFileId(fd) {
         this.fd = fd
-    }
-
-    delPageNode(index) {
-
     }
 
     async getPageNode(index, inuse = true, dirty = false) {
@@ -76,7 +52,7 @@ class PageBuff {
             //winston.error(`# nouse = ${nouse}`)
             if (nouse.length > 0) {
                 let page = PageBuff.map[nouse[0]]
-                winston.error(`## save index: ${page.index}!`)
+                //winston.error(`## save index: ${page.index}!`)
                 var buff = _page.pageToBuff(page)
                 await fileops.writeFile(this.fd, buff, 0, PAGE_SIZE, page.index * PAGE_SIZE)
                 delete PageBuff.map[nouse[0]]

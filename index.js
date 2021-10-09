@@ -82,7 +82,7 @@ async function test0() {
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
-    await writeRange(100, 1)
+    await writeRange(1000, 1)
     //await bptree.dump()
     await bptree.flush()
     let value = await find(100)
