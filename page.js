@@ -36,7 +36,7 @@ class Page {
         used,
         ocnt,
         cells,
-        inuse = false
+        inuse = true
     ) {
         this.index = index
         this.type = type
@@ -105,7 +105,7 @@ class Page {
             0,
             0,
             cells,
-            false
+            true
         )
     }
 
@@ -171,16 +171,16 @@ class Page {
             used,
             0,
             cells,
-            false
+            true
         )
     }
 
     occupy() {
-        this.inuse = true
+        this.inuse++
     }
 
     release() {
-        this.inuse = false
+        this.inuse--
     }
 }
 

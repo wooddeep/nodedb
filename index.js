@@ -7,7 +7,6 @@ const tools = require('./tools')
 const assert = require('assert');
 
 const bptree = new Bptree()
-//const buffer = new PageBuff(1)
 
 async function writeRange(a, b) {
     if (a >= b) {
@@ -80,8 +79,8 @@ async function test0() {
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
-    await writeRange(100, 80)
-    await bptree.dump()
+    await writeRange(100, 91)
+    //await bptree.dump()
     await bptree.flush()
     let value = await find(100)
     assert.equal(value, 100)
@@ -147,7 +146,7 @@ async function test3() {
         assert.equal(value, i)
     }
 
-    await removeRange(0, 1000)
+    //await removeRange(0, 1000)
 
     await bptree.flush()
     await bptree.close()
@@ -236,6 +235,6 @@ const filterOut = [test0, test1, test2]
 
 //funcList.filter(x => !filterOut.includes(x)).forEach(async func => await func())
 
-//test3()
-test5()
+test0()
+//test0()
 //test5()
