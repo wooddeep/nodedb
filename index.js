@@ -12,6 +12,9 @@ async function writeRange(a, b) {
     if (a >= b) {
         for (var value = a; value >= b; value--) {
             let kbuf = tools.buffer(value)
+            if (value === 85) {
+                console.log(`catch`)
+            }
             await bptree.insert(kbuf, value)
         }
     } else {
@@ -79,11 +82,12 @@ async function test0() {
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
-    await writeRange(100, 91)
+    await writeRange(100, 1)
     //await bptree.dump()
     await bptree.flush()
     let value = await find(100)
     assert.equal(value, 100)
+    winston.error(`$$ the buffer's final size is: ${PageBuff.buffSize()}`)
 }
 
 async function test1() {

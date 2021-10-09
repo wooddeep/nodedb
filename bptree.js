@@ -301,14 +301,19 @@ class Bptree {
 
     async setChildPcell(parent) {
         parent.occupy()
-        for (var i = 0; i < parent.used; i++) {
-            let cellIndex = ORDER_NUM - 1 - i
-            let childIndex = parent.cells[cellIndex].index
-            let childPage = await _buff.getPageNode(childIndex, false, true)
-            childPage.pcell = cellIndex // 重新设置pcell
-            childPage.dirty = true
-            childPage.ocnt++
+        try {
+            for (var i = 0; i < parent.used; i++) {
+                let cellIndex = ORDER_NUM - 1 - i
+                let childIndex = parent.cells[cellIndex].index
+                let childPage = await _buff.getPageNode(childIndex, false, true)
+                childPage.pcell = cellIndex // 重新设置pcell
+                childPage.dirty = true
+                childPage.ocnt++
+            }
+        } catch (e) {
+            console.log(parent)    
         }
+
         parent.release()
     }
 
@@ -397,7 +402,8 @@ class Bptree {
             }
 
             // 2. 新页的键值和页号(index)插入到父节点
-            await this.innerInsert(await _buff.getPageNode(brotherPage.parent), brotherPage.cells[ORDER_NUM - 1].key, brotherPage.index, targetPage.pcell)
+            await this.innerInsert(await _buff.getPageNode(brotherPage.parent),
+                brotherPage.cells[ORDER_NUM - 1].key, brotherPage.index, targetPage.pcell)
 
             // 3. 重建brother pcell
             if (brotherPage.type > NODE_TYPE_LEAF) { // 非叶子节点
@@ -411,7 +417,7 @@ class Bptree {
 
         // 4. 重建target pcell
         if (targetPage.type > NODE_TYPE_LEAF) {
-            this.setChildPcell(targetPage)
+            await this.setChildPcell(targetPage)
         } else {
             let parent = await _buff.getPageNode(targetPage.parent, false, false)
             await this.setChildPcell(parent)

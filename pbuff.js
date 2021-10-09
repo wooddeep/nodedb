@@ -57,7 +57,6 @@ class PageBuff {
             pageNode.index = index
             await this.setPageNode(index, pageNode) // 目标页加入缓存
             target = pageNode
-            //console.log(target)
         }
 
         if (target != undefined) {
@@ -74,7 +73,7 @@ class PageBuff {
         let size = Object.getOwnPropertyNames(PageBuff.map).length
         if (size > this.size) { 
             let nouse = Object.keys(PageBuff.map).filter(x => x != 0).filter(x => PageBuff.map[x].inuse == false)
-            winston.error(`# nouse = ${nouse}`)
+            //winston.error(`# nouse = ${nouse}`)
             if (nouse.length > 0) {
                 let page = PageBuff.map[nouse[0]]
                 winston.error(`## save index: ${page.index}!`)
@@ -87,6 +86,10 @@ class PageBuff {
             }
         }
 
+    }
+
+    static buffSize() {
+        return Object.getOwnPropertyNames(PageBuff.map).length
     }
 
 }
