@@ -72,6 +72,9 @@ async function removeRange(a, b) {
         }
     } else {
         for (var value = a; value <= b; value++) {
+            if (value == 21) {
+                console.log("")
+            }
             let kbuf = tools.buffer(value)
             await bptree.remove(kbuf, value)
         }
@@ -150,9 +153,9 @@ async function test3() {
         assert.equal(value, i)
     }
 
-    //await removeRange(0, 1000)
-
-    await bptree.flush()
+    await removeRange(0, 100)
+    winston.error(`$$ the buffer's final size is: ${PageBuff.buffSize()}`)
+    //await bptree.flush()
     await bptree.close()
 }
 
@@ -239,6 +242,6 @@ const filterOut = [test0, test1, test2]
 
 //funcList.filter(x => !filterOut.includes(x)).forEach(async func => await func())
 
-test0()
+test3()
 //test0()
 //test5()

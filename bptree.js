@@ -311,7 +311,7 @@ class Bptree {
                 childPage.ocnt++
             }
         } catch (e) {
-            console.log(parent)    
+            console.log(parent)
         }
 
         parent.release()
@@ -496,10 +496,11 @@ class Bptree {
     /*
      * 判断是否需要与兄弟节点进行合并，或者从兄弟节点借数
      */
-    transDecide(page) {
+    async transDecide(page) {
         if (page.prev > 0) {
             let prevIndex = page.prev
-            if (_buff.getPageNode(prevIndex).used /*pageMap[prevIndex].used*/ + page.used <= ORDER_NUM) {
+            let prevPage = await _buff.getPageNode(prevIndex, false, false)
+            if (prevPage.used + page.used <= ORDER_NUM) {
                 return {
                     "method": TRANS_MERGE,
                     "index": prevIndex,
@@ -514,7 +515,8 @@ class Bptree {
 
         if (page.next > 0) {
             let nextIndex = page.next
-            if (_buff.getPageNode(nextIndex).used /* pageMap[nextIndex].used */ + page.used <= ORDER_NUM) {
+            let nextPage = await _buff.getPageNode(nextIndex, false, false)
+            if (nextPage.used + page.used <= ORDER_NUM) {
                 return {
                     "method": TRANS_MERGE,
                     "index": nextIndex,
@@ -533,14 +535,14 @@ class Bptree {
         }
     }
 
-    shrink(page) {
-        this.appendFreeNode(page.index) // 把自己加入到空闲链表
-        let parent = _buff.getPageNode(page.parent) // pageMap[page.parent]
+    async shrink(page) {
+        await this.appendFreeNode(page.index) // 把自己加入到空闲链表
+        let parent = await _buff.getPageNode(page.parent) // pageMap[page.parent]
         parent.cells.splice(page.pcell, 1)
         parent.used--
         parent.cells.splice(0, 0, _page.newCell()) // 从左侧补充一个
         if (parent.used == 0 && parent.type != NODE_TYPE_ROOT) {
-            this.shrink(parent)
+            await this.shrink(parent)
         }
 
     }
@@ -549,7 +551,7 @@ class Bptree {
     /*
      * 如果把from 合并到 to, 则需要修改from子节点的parent
      */
-    merge(from, to) {
+    async merge(from, to) {
         // 1. 把from的kv值逐一挪动到to, 并修改prev与next指针
         to.dirty = true
         to.ocnt++
@@ -564,9 +566,10 @@ class Bptree {
             let prevIndex = from.prev
             to.prev = prevIndex // 替换prev
             if (prevIndex > 0) {
-                _buff.getPageNode(prevIndex).next = to.index //  pageMap[prevIndex].next = to.index
-                _buff.getPageNode(prevIndex).dirty = true // pageMap[prevIndex].dirty = true
-                _buff.getPageNode(prevIndex).ocnt++ // pageMap[prevIndex].ocnt++
+                let prevPage = await _buff.getPageNode(prevIndex, false, true)
+                prevPage.next = to.index //  pageMap[prevIndex].next = to.index
+                prevPage.dirty = true // pageMap[prevIndex].dirty = true
+                prevPage.ocnt++ // pageMap[prevIndex].ocnt++
             }
         }
 
@@ -582,28 +585,29 @@ class Bptree {
             let nextIndex = from.next
             to.next = nextIndex  // 替换next
             if (nextIndex > 0) {
-                _buff.getPageNode(nextIndex).prev = to.index //  pageMap[nextIndex].prev = to.index
-                _buff.getPageNode(nextIndex).dirty = true //  pageMap[nextIndex].dirty = true
-                _buff.getPageNode(nextIndex).ocnt++ //  pageMap[nextIndex].ocnt++
+                let nextPage = await _buff.getPageNode(nextIndex, false, true)
+                nextPage.prev = to.index //  pageMap[nextIndex].prev = to.index
+                nextPage.dirty = true //  pageMap[nextIndex].dirty = true
+                nextPage.ocnt++ //  pageMap[nextIndex].ocnt++
             }
 
             // 更新to页面的最大值
             let now = to.cells[ORDER_NUM - 1].key
-            let ppage = _buff.getPageNode(to.parent) // pageMap[to.parent]
+            let ppage = await _buff.getPageNode(to.parent, false, false) // pageMap[to.parent]
             if (now.compare(old) != 0) { // 值不一样则更新
-                this.updateMaxToRoot(ppage, to.pcell, old, now)
+                await this.updateMaxToRoot(ppage, to.pcell, old, now)
             }
         }
 
         // 更新to节点所有kv的pcell
         if (to.type > NODE_TYPE_LEAF) {
-            this.setChildPcell(to)
+            await this.setChildPcell(to)
         }
 
         // 2. 把from页面子节点的父节点索引替换成to页面的索引
         if (from.type > NODE_TYPE_LEAF) {
             for (var i = 0; i < from.used; i++) {
-                let childPage = _buff.getPageNode(from.cells[ORDER_NUM - 1 - i].index) //  pageMap[from.cells[ORDER_NUM - 1 - i].index]
+                let childPage = await _buff.getPageNode(from.cells[ORDER_NUM - 1 - i].index, false, true) //  pageMap[from.cells[ORDER_NUM - 1 - i].index]
                 childPage.dirty = true
                 childPage.ocnt++
                 childPage.parent = to.index
@@ -611,10 +615,10 @@ class Bptree {
         }
 
         // 3. from page变成空页，需要用过空闲页链表串起来
-        this.appendFreeNode(from.index)
+        await this.appendFreeNode(from.index)
 
         // 4. 从父节点中把对应的kv值删除, 递归判断是否需要对父节点进行借用或者合并
-        let parent = _buff.getPageNode(from.parent) // pageMap[from.parent]
+        let parent = await _buff.getPageNode(from.parent, false, true) // pageMap[from.parent]
         let pcell = from.pcell
         parent.dirty = true
         parent.ocnt++
@@ -624,16 +628,16 @@ class Bptree {
         parent.cells.splice(0, 0, cell) // 则需要从左侧补充一个
 
         // 更新parent对应child的kv的pcell
-        this.setChildPcell(parent)
+        await this.setChildPcell(parent)
 
         if (parent.used < MORE_HALF_NUM && parent.used > 0) { // 判断是否需要对parent进行借用或者合并
             if (parent.type < NODE_TYPE_ROOT) {
-                let ret = this.transDecide(parent)
+                let ret = await this.transDecide(parent)
                 if (ret.method == TRANS_MERGE) {
-                    this.merge(parent, _buff.getPageNode(ret.index) /*pageMap[ret.index]*/)
+                    await this.merge(parent, await _buff.getPageNode(ret.index, false, false) /*pageMap[ret.index]*/)
                 }
                 if (ret.method == TRANS_BORROW) {
-                    this.borrow(parent, _buff.getPageNode(ret.index) /*pageMap[ret.index]*/)
+                    await this.borrow(parent, await _buff.getPageNode(ret.index, false, false) /*pageMap[ret.index]*/)
                 }
 
                 //process.stdout.write("# ")
@@ -665,7 +669,7 @@ class Bptree {
             // 更新from页面的最大值
             let old = beMov.key
             let now = from.cells[ORDER_NUM - 1].key
-            let ppage = _buff.getPageNode(from.parent) // pageMap[from.parent]
+            let ppage = await _buff.getPageNode(from.parent, false, false) // pageMap[from.parent]
             if (now.compare(old) != 0) { // 值不一样则更新
                 await this.updateMaxToRoot(ppage, from.pcell, old, now)
             }
@@ -684,7 +688,7 @@ class Bptree {
             // 更新to页面的最大值
             let now = beMov.key
             let old = from.cells[ORDER_NUM - 1].key
-            let ppage = _buff.getPageNode(to.parent) // pageMap[to.parent]
+            let ppage = await _buff.getPageNode(to.parent, false, false) // pageMap[to.parent]
             if (now.compare(old) != 0) { // 值不一样则更新
                 await this.updateMaxToRoot(ppage, to.pcell, old, now)
             }
@@ -696,13 +700,13 @@ class Bptree {
 
         // 更新所有kv的pcell
         if (to.type > NODE_TYPE_LEAF) {
-            this.setChildPcell(to)
-            this.setChildPcell(from)
+            await this.setChildPcell(to)
+            await this.setChildPcell(from)
         }
 
         // 2. 把from页面子节点的父节点索引替换成to页面的索引
         if (from.type > NODE_TYPE_LEAF) {
-            let childPage = _buff.getPageNode(beMov.index) // pageMap[beMov.index]
+            let childPage = await _buff.getPageNode(beMov.index, false, true) // pageMap[beMov.index]
             childPage.dirty = true
             childPage.ocnt++
             childPage.parent = to.index
@@ -710,14 +714,14 @@ class Bptree {
 
     }
 
-    remove(kbuf) {
+    async remove(kbuf) {
 
         if (kbuf.compare(rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大值
             winston.error(`[0] key: ${tools.int32le(kbuf)} not found`)
             return false
         }
 
-        let targetPage = this.locateLeaf(kbuf, rootPage, LOC_FOR_DELETE) // 目标叶子节点
+        let targetPage = await this.locateLeaf(kbuf, rootPage, LOC_FOR_DELETE) // 目标叶子节点
         let cellIndex = undefined
         for (var i = ORDER_NUM - 1; i >= 0; i--) {
             if (kbuf.compare(targetPage.cells[i].key) == 0) { // 找到位置
@@ -738,32 +742,36 @@ class Bptree {
         targetPage.cells.splice(cellIndex, 1) // 删除从cellIndex下标开始的1个元素
         targetPage.used-- // 减去使用的个数
 
-        if (targetPage.used == 0) {
-            this.shrink(targetPage)
-        }
+        // if (targetPage.used == 0) {
+        //     await this.shrink(targetPage)
+        // }
 
         if (targetPage.cells.length < ORDER_NUM) { // 删除使数据槽位变少
             let cell = _page.newCell()
             targetPage.cells.splice(0, 0, cell) // 则需要从左侧补充一个
         }
 
+        if (targetPage.used == 0) {
+            await this.shrink(targetPage)
+        }
+
         // 2. 若删除的值是该页的最大值，则需要更新父节点的kv值
         if (cellIndex == ORDER_NUM - 1 && targetPage.used > 0) {
             let now = targetPage.cells[ORDER_NUM - 1].key
-            let ppage = _buff.getPageNode(targetPage.parent) // pageMap[targetPage.parent]
+            let ppage = await _buff.getPageNode(targetPage.parent, false, false) // pageMap[targetPage.parent]
             if (now.compare(old) != 0) { // 值不一样则更新, 且本页有cell被使用
-                this.updateMaxToRoot(ppage, targetPage.pcell, old, now)
+                await this.updateMaxToRoot(ppage, targetPage.pcell, old, now)
             }
         }
 
         // 3. 删除数据后，节点的使用数目小于 MORE_HALF_NUM, 则需要归并或借用
         if (targetPage.used < MORE_HALF_NUM && targetPage.used > 0) {
-            let ret = this.transDecide(targetPage)
+            let ret = await this.transDecide(targetPage)
             if (ret.method == TRANS_MERGE) {
-                this.merge(targetPage, _buff.getPageNode(ret.index) /* pageMap[ret.index] */)
+                await this.merge(targetPage, await _buff.getPageNode(ret.index, false, false) /* pageMap[ret.index] */)
             }
             if (ret.method == TRANS_BORROW) {
-                this.borrow(targetPage, _buff.getPageNode(ret.index) /* pageMap[ret.index] */)
+                await this.borrow(targetPage, await _buff.getPageNode(ret.index, false, false) /* pageMap[ret.index] */)
             }
 
             //process.stdout.write("* ")
