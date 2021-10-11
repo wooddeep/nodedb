@@ -153,9 +153,9 @@ async function test3() {
         assert.equal(value, i)
     }
 
-    await removeRange(0, 100)
+    //await removeRange(0, 300)
     winston.error(`$$ the buffer's final size is: ${PageBuff.buffSize()}`)
-    //await bptree.flush()
+    await bptree.flush()
     await bptree.close()
 }
 
