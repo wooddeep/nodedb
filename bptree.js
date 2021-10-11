@@ -66,10 +66,6 @@ const BUFF_CELL_SIZE = 2000
 const _page = new Page() // 默认构造函数
 const _buff = new Buff(BUFF_CELL_SIZE)
 
-var fileId = undefined
-var rootPage = undefined // 根页面 
-var freeNext = 0
-var freePrev = 0
 
 Buffer.prototype.compare = function (to) {
     let left = this.readInt32LE(0)
@@ -81,11 +77,18 @@ Buffer.prototype.compare = function (to) {
 
 class Bptree {
 
+    constructor() {
+        this.fileId = undefined
+        this.rootPage = undefined // 根页面 
+        this.freeNext = 0
+        this.freePrev = 0
+    }
+
     async appendFreeNode(id) {
         let free = await _buff.getPageNode(id)
-        let firstFreeIndex = rootPage.next
+        let firstFreeIndex = this.rootPage.next
         let firstFreePage = await _buff.getPageNode(firstFreeIndex) // TODO 如果找不到, 需要重新加载
-        rootPage.next = id
+        this.rootPage.next = id
         free.next = firstFreeIndex
         free.prev = firstFreePage.prev
         firstFreePage.prev = id
@@ -96,17 +99,17 @@ class Bptree {
     }
 
     async fetchPageNode(type) {
-        if (rootPage == undefined || rootPage.next == rootPage.prev) {
+        if (this.rootPage == undefined || this.rootPage.next == this.rootPage.prev) {
             let index = this.newPageIndex() // 此处无需插入到缓存中, 在fetchPageNode的调用点被插入，在使用后被release
             let node = _page.newPage(type)  // newPage 返回的page的inuse字段也为true
             node.index = index
             return node // node 无需release, 在使用后被release
         }
 
-        let id = rootPage.next
+        let id = this.rootPage.next
         let node = await _buff.getPageNode(id)
         let nextId = node.next
-        rootPage.next = nextId
+        this.rootPage.next = nextId
         let nextNode = await _buff.getPageNode(nextId)
         nextNode.prev = node.prev
         nextNode.dirty = true
@@ -125,37 +128,37 @@ class Bptree {
             await fileops.createFile(dbname)
         }
 
-        fileId = await fileops.openFile(dbname)
-        _buff.setFileId(fileId)
-        let stat = await fileops.statFile(fileId)
+        this.fileId = await fileops.openFile(dbname)
+        _buff.setFileId(this.fileId)
+        let stat = await fileops.statFile(this.fileId)
         winston.info("file size = " + stat.size)
         Pidx.set(Math.floor(stat.size / PAGE_SIZE)) // 数据库文件所占的总页数
 
         if (stat.size < PAGE_SIZE) { // 空文件
-            rootPage = await this.fetchPageNode(NODE_TYPE_ROOT)    // 新生成一个根页面
-            rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
-            rootPage.next = 0        // rootPage的prev和next指向自己，用于空闲链表
-            rootPage.prev = 0
-            await _buff.setPageNode(0, rootPage)
-            return fileId
+            this.rootPage = await this.fetchPageNode(NODE_TYPE_ROOT)    // 新生成一个根页面
+            this.rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
+            this.rootPage.next = 0        // rootPage的prev和next指向自己，用于空闲链表
+            this.rootPage.prev = 0
+            await _buff.setPageNode(0, this.rootPage)
+            return this.fileId
         }
 
         let buff = Buffer.alloc(PAGE_SIZE)
-        let bytes = await fileops.readFile(fileId, buff, START_OFFSET, PAGE_SIZE, 0) // 文件第一页，始终放置root页
-        rootPage = await _page.buffToPage(buff)
-        rootPage.index = 0
-        await _buff.setPageNode(0, rootPage)
+        let bytes = await fileops.readFile(this.fileId, buff, START_OFFSET, PAGE_SIZE, 0) // 文件第一页，始终放置root页
+        this.rootPage = await _page.buffToPage(buff)
+        this.rootPage.index = 0
+        await _buff.setPageNode(0, this.rootPage)
 
         let minSize = BUFF_CELL_SIZE * PAGE_SIZE > stat.size ? stat.size : BUFF_CELL_SIZE * PAGE_SIZE
         for (var index = PAGE_SIZE; index < minSize; index += PAGE_SIZE) {
-            await fileops.readFile(fileId, buff, START_OFFSET, PAGE_SIZE, index) // 非root页
+            await fileops.readFile(this.fileId, buff, START_OFFSET, PAGE_SIZE, index) // 非root页
             let pageNode = _page.buffToPage(buff)
             let pageIndex = Math.floor(index / PAGE_SIZE)
             pageNode.index = pageIndex
             await _buff.setPageNode(pageIndex, pageNode)
         }
 
-        return fileId
+        return this.fileId
     }
 
     /*
@@ -209,8 +212,8 @@ class Bptree {
         left.ocnt++
         right.ocnt++
 
-        page.prev = freePrev
-        page.next = freeNext
+        page.prev = this.freePrev
+        page.next = this.freeNext
 
         right.release()
         left.release()
@@ -336,8 +339,8 @@ class Bptree {
 
         if (targetPage.used == ORDER_NUM + 1) { // 若插入后, 节点包含关键字数大于阶数, 则分裂
             if (targetPage.type == NODE_TYPE_ROOT) { // 缓存头结点的freelist信息
-                freeNext = targetPage.next
-                freePrev = targetPage.prev
+                this.freeNext = targetPage.next
+                this.freePrev = targetPage.prev
             }
 
             let brotherPage = await this.fetchPageNode(undefined)    // 左边的兄弟页
@@ -427,7 +430,7 @@ class Bptree {
     }
 
     needUpdateMax(key) {
-        if (key.compare(rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大键值 
+        if (key.compare(this.rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大键值 
             return true
         }
         return false
@@ -476,15 +479,15 @@ class Bptree {
     }
 
     async insert(key, value) {
-        let targetPage = await this.locateLeaf(key, rootPage, LOC_FOR_INSERT) // 目标叶子节点
+        let targetPage = await this.locateLeaf(key, this.rootPage, LOC_FOR_INSERT) // 目标叶子节点
         await this.innerInsert(targetPage, key, value)
         if (this.needUpdateMax(key)) {
-            await this.updateMaxToLeaf(rootPage, key)
+            await this.updateMaxToLeaf(this.rootPage, key)
         }
     }
 
     async select(key) {
-        let targetPage = await this.locateLeaf(key, rootPage, LOC_FOR_SELECT) // 目标叶子节点
+        let targetPage = await this.locateLeaf(key, this.rootPage, LOC_FOR_SELECT) // 目标叶子节点
         for (var i = ORDER_NUM - 1; i >= 0; i--) {
             if (key.compare(targetPage.cells[i].key) == 0) { // 找到位置
                 return targetPage.cells[i].index
@@ -716,12 +719,12 @@ class Bptree {
 
     async remove(kbuf) {
 
-        if (kbuf.compare(rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大值
+        if (kbuf.compare(this.rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大值
             winston.error(`[0] key: ${tools.int32le(kbuf)} not found`)
             return false
         }
 
-        let targetPage = await this.locateLeaf(kbuf, rootPage, LOC_FOR_DELETE) // 目标叶子节点
+        let targetPage = await this.locateLeaf(kbuf, this.rootPage, LOC_FOR_DELETE) // 目标叶子节点
         let cellIndex = undefined
         for (var i = ORDER_NUM - 1; i >= 0; i--) {
             if (kbuf.compare(targetPage.cells[i].key) == 0) { // 找到位置
@@ -782,10 +785,10 @@ class Bptree {
             var page = await _buff.getPageNode(index, false, true)
             if (page != undefined && page.dirty == true) {
                 var buff = _page.pageToBuff(page)
-                await fileops.writeFile(fileId, buff, 0, PAGE_SIZE, index * PAGE_SIZE)
+                await fileops.writeFile(this.fileId, buff, 0, PAGE_SIZE, index * PAGE_SIZE)
             }
         }
-        await fileops.syncFile(fileId)
+        await fileops.syncFile(this.fileId)
     }
 
     async dump() {
@@ -808,7 +811,7 @@ class Bptree {
     }
 
     async close() {
-        await fileops.closeFile(fileId)
+        await fileops.closeFile(this.fileId)
     }
 
 }
