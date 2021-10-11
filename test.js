@@ -31,18 +31,16 @@ async function writeOne(value) {
 }
 
 async function writeAny(keys) {
-    keys.forEach(key => {
+    for (var i = 0; i < keys.length; i++) {
+        let key = keys[i]
         let kbuf = tools.buffer(key)
-        bptree.insert(kbuf, key)
-    })
+        await bptree.insert(kbuf, key)
+    }
 }
 
 async function find(key) {
     let kbuf = tools.buffer(key)
     let value = bptree.select(kbuf)
-    if (value == undefined) {
-        console.log("#####")
-    }
     winston.info("value = " + value)
     return value
 }
@@ -53,15 +51,16 @@ async function removeOne(key) {
 }
 
 async function removeAny(keys) {
-    keys.forEach(key => {
+    for (var i = 0; i < keys.length; i++) {
+        let key = keys[i]
         try {
             let kbuf = tools.buffer(key)
-            bptree.remove(kbuf)
+            await bptree.remove(kbuf)
             winston.info(`# delete: key = ${key} ok`)
         } catch (e) {
             winston.error(`# delete: key = ${key} error`)
         }
-    })
+    }
 }
 
 async function removeRange(a, b) {
@@ -72,9 +71,6 @@ async function removeRange(a, b) {
         }
     } else {
         for (var value = a; value <= b; value++) {
-            if (value == 21) {
-                console.log("")
-            }
             let kbuf = tools.buffer(value)
             await bptree.remove(kbuf, value)
         }
@@ -86,11 +82,11 @@ async function test0() {
     await bptree.drop(dbname)
     await bptree.init(dbname)
     await writeRange(1000, 1)
-    //await bptree.dump()
     await bptree.flush()
     let value = await find(100)
     assert.equal(value, 100)
     winston.error(`$$ the buffer's final size is: ${PageBuff.buffSize()}`)
+    await bptree.close()
 }
 
 async function test1() {
@@ -106,7 +102,7 @@ async function test1() {
     let value = await find(100)
     assert.equal(value, 100)
 
-    value = await findTest(98)
+    value = await find(98)
     assert.equal(value, undefined)
 
     await bptree.flush()
@@ -153,7 +149,7 @@ async function test3() {
         assert.equal(value, i)
     }
 
-    //await removeRange(0, 300)
+    await removeRange(0, 1000)
     winston.error(`$$ the buffer's final size is: ${PageBuff.buffSize()}`)
     await bptree.flush()
     await bptree.close()
@@ -165,10 +161,7 @@ function random(min, max) {
 
 /* dynamic data insert and delete test! */
 async function test4() {
-    // [56,13,419,741,820,564,737,612,703,581,805,587,789,642,616,869,981,259,479,54]
-    // [25,29,72,94,71,26,17,96,22,86,1,22,13,69,62,95,24,22,34,81]
-    let array = [] //[25, 29, 72, 94, 71, 26, 17, 96, 22, 86, 1, 22, 13, 69, 62, 95, 24, 22, 34, 81]
-    //array = [44, 42, 44, 48, 19, 2, 15, 87, 29, 24, 60, 40, 75, 56, 83, 46, 85, 41, 94, 62]
+    let array = []
     let number = array.length > 0 ? array.length : 1000
     if (array.length == 0) {
         for (var i = 0; i < number; i++) {
@@ -229,7 +222,7 @@ async function test5() {
     for (var i = 0; i < number; i++) {
         let pos = random(0, array.length - 1)
         let key = array[pos]
-        let value = await removeOne(key) 
+        let value = await removeOne(key)
         array.splice(pos, 1)
     }
 
@@ -238,10 +231,16 @@ async function test5() {
 }
 
 const funcList = [test0, test1, test2, test3, test4, test5]
-const filterOut = [test0, test1, test2]
+const filterOut = [test3, test4, test5]
 
-//funcList.filter(x => !filterOut.includes(x)).forEach(async func => await func())
+async function test() {
+    funs = funcList.filter(x => !filterOut.includes(x))
+    for (var i = 0; i < funs.length; i++) {
+        func = funs[i]
+        winston.error(`>>>>>>>>>(s)`)
+        await func()
+        winston.error(`<<<<<<<<<(e)`)
+    }
+}
 
-test3()
-//test0()
-//test5()
+test()

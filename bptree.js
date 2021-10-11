@@ -61,7 +61,7 @@ const Pidx = require('./pidx.js')
 var Page = require('./page.js')
 var Buff = require('./pbuff.js')
 
-const BUFF_CELL_SIZE = 2
+const BUFF_CELL_SIZE = 2000
 
 const _page = new Page() // 默认构造函数
 const _buff = new Buff(BUFF_CELL_SIZE)
@@ -146,7 +146,8 @@ class Bptree {
         rootPage.index = 0
         await _buff.setPageNode(0, rootPage)
 
-        for (var index = PAGE_SIZE; index < BUFF_CELL_SIZE * PAGE_SIZE /*stat.size*/; index += PAGE_SIZE) {
+        let minSize = BUFF_CELL_SIZE * PAGE_SIZE > stat.size ? stat.size : BUFF_CELL_SIZE * PAGE_SIZE
+        for (var index = PAGE_SIZE; index < minSize; index += PAGE_SIZE) {
             await fileops.readFile(fileId, buff, START_OFFSET, PAGE_SIZE, index) // 非root页
             let pageNode = _page.buffToPage(buff)
             let pageIndex = Math.floor(index / PAGE_SIZE)
@@ -668,7 +669,7 @@ class Bptree {
             // 更新from页面的最大值
             let old = beMov.key
             let now = from.cells[ORDER_NUM - 1].key
-            let ppage = await _buff.getPageNode(from.parent, false, false) 
+            let ppage = await _buff.getPageNode(from.parent, false, false)
             if (now.compare(old) != 0) { // 值不一样则更新
                 await this.updateMaxToRoot(ppage, from.pcell, old, now)
             }
