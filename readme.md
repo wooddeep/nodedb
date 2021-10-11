@@ -8,14 +8,19 @@ const winston = require('./winston/config');
 const Bptree = require("./bptree.js");
 const fileops = require("./fileops.js");
 const constant = require("./const.js");
+const PageBuff = require("./pbuff.js");
 const tools = require('./tools')
 const assert = require('assert');
+
 const bptree = new Bptree()
 
 async function writeRange(a, b) {
     if (a >= b) {
         for (var value = a; value >= b; value--) {
             let kbuf = tools.buffer(value)
+            if (value === 85) {
+                console.log(`catch`)
+            }
             await bptree.insert(kbuf, value)
         }
     } else {
@@ -31,6 +36,14 @@ async function writeOne(value) {
     await bptree.insert(kbuf, value)
 }
 
+async function writeAny(keys) {
+    for (var i = 0; i < keys.length; i++) {
+        let key = keys[i]
+        let kbuf = tools.buffer(key)
+        await bptree.insert(kbuf, key)
+    }
+}
+
 async function find(key) {
     let kbuf = tools.buffer(key)
     let value = bptree.select(kbuf)
@@ -40,15 +53,20 @@ async function find(key) {
 
 async function removeOne(key) {
     let kbuf = tools.buffer(key)
-    bptree.remove(kbuf)
+    await bptree.remove(kbuf)
 }
 
 async function removeAny(keys) {
-    keys.forEach(key => {
-        winston.error(`to delete: key = ${key}`)
-        let kbuf = tools.buffer(key)
-        bptree.remove(kbuf)
-    })
+    for (var i = 0; i < keys.length; i++) {
+        let key = keys[i]
+        try {
+            let kbuf = tools.buffer(key)
+            await bptree.remove(kbuf)
+            winston.info(`# delete: key = ${key} ok`)
+        } catch (e) {
+            winston.error(`# delete: key = ${key} error`)
+        }
+    }
 }
 
 async function removeRange(a, b) {
@@ -69,11 +87,12 @@ async function test0() {
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
-    await writeRange(100, 80)
-    await bptree.dump()
+    await writeRange(1000, 1)
     await bptree.flush()
     let value = await find(100)
     assert.equal(value, 100)
+    winston.error(`$$ the buffer's final size is: ${PageBuff.buffSize()}`)
+    await bptree.close()
 }
 
 async function test1() {
@@ -89,7 +108,7 @@ async function test1() {
     let value = await find(100)
     assert.equal(value, 100)
 
-    value = await findTest(98)
+    value = await find(98)
     assert.equal(value, undefined)
 
     await bptree.flush()
@@ -130,22 +149,107 @@ async function test3() {
 
     await bptree.init(dbname)
 
-    await writeRange(1000, 0)
+    await writeRange(0, 1000)
     for (var i = 0; i < 1000; i++) {
         let value = await find(i)
         assert.equal(value, i)
     }
 
-    await removeRange(1000, 0)
+    await removeRange(0, 1000)
+    winston.error(`$$ the buffer's final size is: ${PageBuff.buffSize()}`)
+    await bptree.flush()
+    await bptree.close()
+}
+
+function random(min, max) {
+    return Math.floor(Math.random() * (max - min)) + min;
+}
+
+/* dynamic data insert and delete test! */
+async function test4() {
+    let array = []
+    let number = array.length > 0 ? array.length : 1000
+    if (array.length == 0) {
+        for (var i = 0; i < number; i++) {
+            array.push(random(0, 1000))
+        }
+    }
+    winston.error(array)
+
+    let dbname = "test.db"
+    try {
+        await bptree.drop(dbname)
+    } catch (e) {
+        winston.warn(`drop error!`)
+    }
+
+    await bptree.init(dbname)
+    await writeAny(array)
+
+    for (var i = 0; i < number; i++) {
+        let key = array[i]
+        let value = await find(key)
+        winston.error(`# find: key:${key} => value:${value}`)
+        assert.equal(value, key)
+    }
+
+    await removeAny(array)
+    await bptree.flush()
+    await bptree.close()
+}
+
+async function test5() {
+    let array = []
+    let number = array.length > 0 ? array.length : 1000
+    if (array.length == 0) {
+        for (var i = 0; i < number; i++) {
+            array.push(random(0, 1000))
+        }
+    }
+    winston.error(array)
+
+    let dbname = "test.db"
+    try {
+        await bptree.drop(dbname)
+    } catch (e) {
+        winston.warn(`drop error!`)
+    }
+
+    await bptree.init(dbname)
+    await writeAny(array)
+
+    for (var i = 0; i < number; i++) {
+        let key = array[i]
+        let value = await find(key)
+        winston.info(`# find: key:${key} => value:${value}`)
+        assert.equal(value, key)
+    }
+
+    for (var i = 0; i < number; i++) {
+        let pos = random(0, array.length - 1)
+        let key = array[pos]
+        let value = await removeOne(key)
+        array.splice(pos, 1)
+    }
 
     await bptree.flush()
     await bptree.close()
 }
 
-const funcList = [test0, test1, test2, test3]
-const filterOut = [test0, test1, test2]
+const funcList = [test0, test1, test2, test3, test4, test5]
+const filterOut = [test3, test4, test5]
 
-funcList.filter(x => !filterOut.includes(x)).forEach(func => func())
+async function test() {
+    funs = funcList.filter(x => !filterOut.includes(x))
+    for (var i = 0; i < funs.length; i++) {
+        func = funs[i]
+        winston.error(`>>>>>>>>>(s)`)
+        await func()
+        winston.error(`<<<<<<<<<(e)`)
+    }
+}
+
+test()
 
 ```
 </br>
