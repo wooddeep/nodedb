@@ -8,12 +8,9 @@ const winston = require('./winston/config');
 const Bptree = require("./bptree.js");
 const fileops = require("./fileops.js");
 const constant = require("./const.js");
-const Buffer = require("./buffer.js");
 const tools = require('./tools')
 const assert = require('assert');
-
 const bptree = new Bptree()
-const buffer = new Buffer(1)
 
 async function writeRange(a, b) {
     if (a >= b) {
