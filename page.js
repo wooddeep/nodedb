@@ -26,9 +26,28 @@ const {
 class Page {
 
     // 构造方法
-    constructor(name, age) {
-        this.name = name;
-        this.age = age;
+    constructor(
+        index,
+        type,
+        parent,
+        next,
+        prev,
+        pcell,
+        used,
+        ocnt,
+        cells,
+        inuse = true
+    ) {
+        this.index = index
+        this.type = type
+        this.parent = parent
+        this.next = next
+        this.prev = prev
+        this.pcell = pcell
+        this.used = used
+        this.ocnt = ocnt
+        this.cells = cells
+        this.inuse = inuse
     }
 
     // 静态函数
@@ -44,15 +63,21 @@ class Page {
         let buffer = Buffer.alloc(KEY_MAX_LEN)
         keyBuf.copy(buffer, 0, 0, KEY_MAX_LEN)
 
-        //let vbuff = Buffer.alloc(VAL_IDX_LEN) // TODO
-        //vbuff.writeInt32LE(value)
-
         return {
             key: buffer,
             index: value,
         }
     }
-    
+
+    copyCell(source) {
+        let buffer = Buffer.alloc(KEY_MAX_LEN)
+        source.key.copy(buffer, 0, 0, KEY_MAX_LEN)
+        return {
+            key: buffer,
+            index: source.index,
+        }
+    }
+
     parseCell(buf) {
         var key = Buffer.alloc(KEY_MAX_LEN)
         buf.copy(key, 0, 0, KEY_MAX_LEN)
@@ -70,16 +95,18 @@ class Page {
             cells.push(cell)
         }
 
-        return {
-            type: type,        // 页类型：2 ~ 根, 1 ~ 中间节点, 0 ~ 叶子节点
-            parent: -1,         // 父节点
-            next: -1,           // 兄节点
-            prev: -1,           // 弟节点 
-            pcell: -1,          // 父节点 cell索引
-            used: 0,            // 已经使用的cell个数
-            ocnt: 0,            // 操作次数
-            cells: cells,
-        }
+        return new Page(
+            -1,
+            type,
+            -1,
+            -1,
+            -1,
+            -1,
+            0,
+            0,
+            cells,
+            true
+        )
     }
 
     copyPage(target, source) {
@@ -91,7 +118,7 @@ class Page {
         target.used = source.used
 
         for (var index = 0; index < ORDER_NUM; index++) {
-            target.cells[index] = source.cells[index]
+            target.cells[index] = this.copyCell(source.cells[index])
         }
     }
 
@@ -134,15 +161,26 @@ class Page {
             cells.push(cell)
         }
 
-        return {
-            type: type,
-            parent: parent,
-            next: next,
-            prev: prev,
-            pcell: pcell,
-            used: used,
-            cells: cells
-        }
+        return new Page(
+            -1,
+            type,
+            parent,
+            next,
+            prev,
+            pcell,
+            used,
+            0,
+            cells,
+            true
+        )
+    }
+
+    occupy() {
+        this.inuse = true
+    }
+
+    release() {
+        this.inuse = false
     }
 }
 

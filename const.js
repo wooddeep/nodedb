@@ -3,7 +3,32 @@
  * History: create at 20210811
  */
 
-const PAGE_SIZE = 1024     // 页大小
+// 
+//  page node 存储分布
+//  +---------------+
+//  +     TYPE      +            // 叶结点类型字段：4字节
+//  +---------------+
+//  +    PARENT     +            // 父节点索引字段：4字节
+//  +---------------+
+//  +     NEXT      +            // 兄节点索引字段：4字节
+//  +---------------+
+//  +     PREV      +            // 弟节点索引字段：4字节  
+//  +-------+-------+
+//  + PCELL |  USED +            // 本节点在父节点的KV数组中的下标：2字节 | 本节点KV数组已使用的个数：2字节
+//  +-------+-------+
+//  |       |       |   
+//  |  KEY  |  VAL  |            // 一对KV值，K与V的长度可以配置，KV对的个数和K长度、V长度、以及页大小相关
+//  |       |       |   
+//  +-------+-------+
+//  |    ........   |
+//  +-------+-------+
+//  |       |       |   
+//  |  KEY  |  VAL  |
+//  |       |       |   
+//  +-------+-------+
+//
+
+const PAGE_SIZE = 64     // 页大小
 const START_OFFSET = 0   // 起始偏移量
 const KEY_MAX_LEN = 10   // 键值最大长度
 const VAL_IDX_LEN = 4    // 值页索引长度, 如果中间节点指向子页面, 叶子节点指向值
@@ -71,7 +96,8 @@ var constant = {
     LOC_FOR_DELETE: LOC_FOR_DELETE,
     TRANS_MERGE: TRANS_MERGE,
     TRANS_BORROW: TRANS_BORROW,
-    TRANS_SHRINK: TRANS_SHRINK
+    TRANS_SHRINK: TRANS_SHRINK,
+    START_OFFSET: START_OFFSET
 }
 
 module.exports = constant;
