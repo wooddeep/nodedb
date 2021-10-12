@@ -2,18 +2,21 @@ const winston = require('./winston/config')
 
 class PageIndex {
 
-    static set(mi) {
-        PageIndex.maxIndex = mi
+    constructor(mi = 0) {
+        this.maxIndex = mi
     }
 
-    static get() {
-        return PageIndex.maxIndex
+    set(mi) {
+        this.maxIndex = mi
     }
 
-    static incr() {
-        PageIndex.maxIndex++
+    get() {
+        return this.maxIndex
+    }
+
+    incr() {
+        this.maxIndex++
     }
 }
 
-PageIndex.maxIndex = 0
 module.exports = PageIndex;

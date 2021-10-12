@@ -2,7 +2,6 @@ const winston = require('./winston/config');
 const Bptree = require("./bptree.js");
 const fileops = require("./fileops.js");
 const constant = require("./const.js");
-const PageBuff = require("./pbuff.js");
 const tools = require('./tools')
 const assert = require('assert');
 
@@ -88,9 +87,8 @@ async function test0() {
     await bptree.flush()
     let value = await find(bptree, 100)
     assert.equal(value, 100)
-    winston.error(`$$ the buffer's final size is: ${PageBuff.buffSize()}`)
+    winston.error(`$$ the buffer's final size is: ${bptree.getBuffer().buffSize()}`)
     await bptree.close()
-    bptree = undefined
 }
 
 async function test1() {
@@ -112,7 +110,6 @@ async function test1() {
 
     await bptree.flush()
     await bptree.close()
-    bptree = undefined
 }
 
 
@@ -136,7 +133,6 @@ async function test2() {
 
     await bptree.flush()
     await bptree.close()
-    bptree = undefined
 }
 
 
@@ -158,10 +154,9 @@ async function test3() {
     }
 
     await removeRange(bptree, 0, 1000)
-    winston.error(`$$ the buffer's final size is: ${PageBuff.buffSize()}`)
+    winston.error(`$$ the buffer's final size is: ${bptree.getBuffer().buffSize()}`)
     await bptree.flush()
     await bptree.close()
-    bptree = undefined
 }
 
 /* dynamic data insert and delete test! */
@@ -196,7 +191,6 @@ async function test4() {
     await removeAny(bptree, array)
     await bptree.flush()
     await bptree.close()
-    bptree = undefined
 }
 
 async function test5() {
@@ -236,7 +230,6 @@ async function test5() {
 
     await bptree.flush()
     await bptree.close()
-    bptree = undefined
 }
 
 const funcList = [test0, test1, test2, test3, test4, test5]
