@@ -30,7 +30,7 @@
 
 const PAGE_SIZE = 4096     // 页大小
 const START_OFFSET = 0   // 起始偏移量
-const KEY_MAX_LEN = 10   // 键值最大长度
+const KEY_MAX_LEN = 9   // 键值最大长度
 const VAL_TYPE_LEN = 1   // 值类型长度
 const VAL_IDX_LEN = 4    // 值页索引长度, 如果中间节点指向子页面, 叶子节点指向值
 

@@ -87,39 +87,20 @@ class Page {
         if (type == VAL_TYPE_IDX) {
             buff.writeInt32LE(value)
         } else {
-            if (type == VAL_TYPE_NUM) {
-                buff.writeInt32LE(value) // TODO 区分 整形 和 浮点型
-            }
-            
-            if (type == VAL_TYPE_FPN) {
-                buff.writeFloatLE(value) // TODO 区分 整形 和 浮点型
-            }
-
-            if (type == VAL_TYPE_STR) {
-                value.copy(buff, 0, 0, VAL_IDX_LEN)
-            }
+            value.copy(buff, 0, 0, VAL_IDX_LEN)
         }
-        
+
         return buff
     }
 
-    buffToValue(type, buff, offset) {
+    buffTrans(type, buff, offset) {
         if (type == VAL_TYPE_IDX) {
-            return buff.readInt32LE()
+            return buff.readInt32LE(offset)
 
         } else {
-            let buff = Buffer.alloc(VAL_IDX_LEN)
-            if (type == VAL_TYPE_NUM) {
-                return buff.readInt32LE()
-            }
-            if (type == VAL_TYPE_FPN) {
-                return buff.readFloatLE()
-            }
-
-            if (type == VAL_TYPE_STR) {
-                return buff.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
-            }
-
+            let strBuff = Buffer.alloc(VAL_IDX_LEN)
+            buff.copy(strBuff, 0, offset)
+            return strBuff
         }
     }
 
@@ -152,7 +133,7 @@ class Page {
         var key = Buffer.alloc(KEY_MAX_LEN)
         buf.copy(key, 0, 0, KEY_MAX_LEN)
         var type = buf.readInt8(KEY_MAX_LEN)
-        var index = this.buffToValue(type, buf, KEY_MAX_LEN + VAL_TYPE_LEN)
+        var index = this.buffTrans(type, buf, KEY_MAX_LEN + VAL_TYPE_LEN)
         return {
             key: key,
             type: type,
@@ -165,6 +146,7 @@ class Page {
         cell.key.copy(buff, 0, 0, KEY_MAX_LEN) // 键值
         buff.writeInt8(cell.type, KEY_MAX_LEN) // 值类型
         let valBuff = this.valueToBuff(cell.index, cell.type)
+        // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
         valBuff.copy(buff, KEY_MAX_LEN + VAL_TYPE_LEN, 0, VAL_IDX_LEN)
 
         return buff
