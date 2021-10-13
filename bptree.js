@@ -66,8 +66,6 @@ const Buff = require('./pbuff.js')
 const Page = require('./page.js')
 const Pidx = require('./pidx.js')
 
-const BUFF_CELL_SIZE = 2000
-
 Buffer.prototype.compare = function (to) {
     let left = this.readInt32LE(0)
     let right = to.readInt32LE(0)
@@ -78,14 +76,15 @@ Buffer.prototype.compare = function (to) {
 
 class Bptree {
 
-    constructor() {
+    constructor(bs = 1000) {
         this.fileId = undefined
         this.rootPage = undefined // 根页面 
         this.freeNext = 0
         this.freePrev = 0
         this._page = new Page()
         this._pidx = new Pidx()
-        this._buff = new Buff(BUFF_CELL_SIZE, this._pidx)
+        this.buffSize = bs
+        this._buff = new Buff(this.buffSize, this._pidx)
     }
 
     getBuffer() {
@@ -127,7 +126,11 @@ class Bptree {
     }
 
     async drop(dbname) {
-        let ret = await fileops.unlinkFile(dbname)
+        try {
+            let ret = await fileops.unlinkFile(dbname)
+        } catch (e) {
+            winston.info(e)
+        }
     }
 
     async init(dbname) {
@@ -157,7 +160,7 @@ class Bptree {
         this.rootPage.index = 0
         await this._buff.setPageNode(0, this.rootPage)
 
-        let minSize = BUFF_CELL_SIZE * PAGE_SIZE > stat.size ? stat.size : BUFF_CELL_SIZE * PAGE_SIZE
+        let minSize = this.buffSize * PAGE_SIZE > stat.size ? stat.size : this.buffSize * PAGE_SIZE
         for (var index = PAGE_SIZE; index < minSize; index += PAGE_SIZE) {
             await fileops.readFile(this.fileId, buff, START_OFFSET, PAGE_SIZE, index) // 非root页
             let pageNode = this._page.buffToPage(buff)
@@ -506,6 +509,9 @@ class Bptree {
     }
 
     async insert(key, value) {
+        if (value == 95) {
+            console.log("")
+        }
         let targetPage = await this.locateLeaf(key, this.rootPage, LOC_FOR_INSERT) // 目标叶子节点
         await this.innerInsert(targetPage, key, value)
         if (this.needUpdateMax(key)) {
