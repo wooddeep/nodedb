@@ -1,4 +1,4 @@
-const winston = require('./winston/config')
+const winston = require('../winston/config')
 
 class PageIndex {
 

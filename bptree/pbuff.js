@@ -1,12 +1,12 @@
-const winston = require('./winston/config')
-const fileops = require('./fileops')
+const winston = require('../winston/config')
+const fileops = require('../common/fileops')
 var Page = require('./page.js')
 const _page = new Page() // 默认构造函数
 
 const {
     START_OFFSET,
     PAGE_SIZE,
-} = require("./const.js")
+} = require("../common/const.js")
 
 class PageBuff {
 

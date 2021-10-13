@@ -3,7 +3,7 @@
  * History: create at 20210811
  */
 
-const winston = require('./winston/config');
+const winston = require('../winston/config');
 var fs = require('fs');
 const { PAGE_SIZE } = require('./const');
 
