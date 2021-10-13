@@ -1,9 +1,10 @@
 const winston = require('./winston/config');
-const Bptree = require("./bptree.js");
 const fileops = require("./fileops.js");
 const constant = require("./const.js");
-const tools = require('./tools')
+const Bptree = require("./bptree.js");
 const assert = require('assert');
+const tools = require('./tools');
+
 
 function random(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
@@ -26,8 +27,8 @@ async function writeRange(bptree, a, b) {
     }
 }
 
-async function writeOne(bptree, value) {
-    let kbuf = tools.buffer(value)
+async function writeOne(bptree, key, value) {
+    let kbuf = tools.buffer(key)
     await bptree.insert(kbuf, value)
 }
 
@@ -41,7 +42,7 @@ async function writeAny(bptree, keys) {
 
 async function find(bptree, key) {
     let kbuf = tools.buffer(key)
-    let value = bptree.select(kbuf)
+    let value = await bptree.select(kbuf)
     winston.info("value = " + value)
     return value
 }
@@ -99,8 +100,8 @@ async function test1() {
 
     await writeRange(bptree, 100, 97)
     await removeAny(bptree, [100, 99, 98, 97])
-    await writeOne(bptree, 100)
-    await writeOne(bptree, 99)
+    await writeOne(bptree, 100, 100)
+    await writeOne(bptree, 99, 99)
 
     let value = await find(bptree, 100)
     assert.equal(value, 100)
@@ -134,7 +135,6 @@ async function test2() {
     await bptree.flush()
     await bptree.close()
 }
-
 
 async function test3() {
     let bptree = new Bptree()
@@ -202,7 +202,7 @@ async function test5() {
             array.push(random(0, 1000))
         }
     }
-    winston.error(array)
+    winston.info(array)
 
     let dbname = "test5.db"
     try {
@@ -232,8 +232,34 @@ async function test5() {
     await bptree.close()
 }
 
-const funcList = [test0, test1, test2, test3, test4, test5]
-const filterOut = [/*test0, test2, test1,  test4 */]
+/* 测试value为字符串 */
+async function test6() {
+    let bptree = new Bptree()
+    let dbname = "test.db"
+    await bptree.drop(dbname)
+    await bptree.init(dbname)
+    await writeOne(bptree, 100, 'hello')
+    await bptree.flush()
+    let value = await find(bptree, 100)
+    assert.equal(value, 'hello')
+    await bptree.close()
+}
+
+/* 测试value为浮点数 */
+async function test7() {
+    let bptree = new Bptree()
+    let dbname = "test.db"
+    await bptree.drop(dbname)
+    await bptree.init(dbname)
+    await writeOne(bptree, 100, 1.2345)
+    await bptree.flush()
+    let value = await find(bptree, 100)
+    winston.error(`## map[100] = ${value}`)
+    await bptree.close()
+}
+
+const funcList = [test0, test1, test2, test3, test4, test5, test6, test7]
+const filterOut = [test0, test2, test1,  test3, test4, test5, test7]
 
 async function test() {
     funs = funcList.filter(x => !filterOut.includes(x))
