@@ -74,7 +74,7 @@ async function removeRange(bptree, a, b) {
 }
 
 async function test0() {
-    let bptree = new Bptree(500)
+    let bptree = new Bptree(4)
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
@@ -87,12 +87,12 @@ async function test0() {
 }
 
 async function test1() {
-    let bptree = new Bptree(3)
+    let bptree = new Bptree(2)
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
 
-    await writeAny(bptree, [100, 99, 98, 97])
+    await writeRange(bptree, 100, 97)
     await removeAny(bptree, [100, 99, 98, 97])
     await writeOne(bptree, 100, 100)
     await writeOne(bptree, 99, 99)
@@ -127,11 +127,12 @@ async function test2() {
     }
 
     await bptree.flush()
+    winston.error(`$$ the buffer's final size is: ${bptree.getBuffer().buffSize()}`)
     await bptree.close()
 }
 
 async function test3() {
-    let bptree = new Bptree(500)
+    let bptree = new Bptree(5)
     let dbname = "test.db"
     try {
         await bptree.drop(dbname)
@@ -155,7 +156,7 @@ async function test3() {
 
 /* dynamic data insert and delete test! */
 async function test4() {
-    let bptree = new Bptree(500)
+    let bptree = new Bptree(50)
     let array = []
     let number = array.length > 0 ? array.length : 1000
     if (array.length == 0) {
@@ -188,7 +189,7 @@ async function test4() {
 }
 
 async function test5() {
-    let bptree = new Bptree(500)
+    let bptree = new Bptree(50)
     let array = []
     let number = array.length > 0 ? array.length : 1000
     if (array.length == 0) {
@@ -267,14 +268,14 @@ async function test8() {
 }
 
 const funcList = [
-    test0,
-    test1,
-    //test2,
-    test3,
-    test4,
+    // test0,
+    // test1,
+    // test2,
+    // test3,
+    // test4,
     test5,
-    test6,
-    test7,
+    // test6,
+    // test7,
     // test8
 ]
 
