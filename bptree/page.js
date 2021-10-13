@@ -26,8 +26,8 @@ const {
     VAL_TYPE_NUM,
     VAL_TYPE_STR,
     VAL_TYPE_FPN,
-} = require("./const.js");
-const { buffer } = require("./tools.js");
+} = require("../common/const.js");
+const { buffer } = require("../common/tools.js");
 
 class Page {
 

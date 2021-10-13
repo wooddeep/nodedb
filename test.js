@@ -1,10 +1,7 @@
 const winston = require('./winston/config');
-const fileops = require("./fileops.js");
-const constant = require("./const.js");
-const Bptree = require("./bptree.js");
+const Bptree = require("./bptree/bptree.js");
+const tools = require('./common/tools');
 const assert = require('assert');
-const tools = require('./tools');
-
 
 function random(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
@@ -270,15 +267,15 @@ async function test8() {
 }
 
 const funcList = [
-    // test0,
-    // test1,
-    // test2,
-    // test3,
-    // test4,
-    // test5,
-    // test6,
-    // test7,
-    test8
+    test0,
+    test1,
+    //test2,
+    test3,
+    test4,
+    test5,
+    test6,
+    test7,
+    // test8
 ]
 
 async function test() {

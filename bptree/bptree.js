@@ -57,11 +57,11 @@ const {
     VAL_TYPE_STR,
     VAL_TYPE_FPN,
     VAL_TYPE_UNK,
-} = require("./const.js")
+} = require("../common/const.js")
 
-const winston = require('./winston/config')
-const fileops = require("./fileops.js")
-const tools = require('./tools')
+const winston = require('../winston/config')
+const fileops = require("../common/fileops.js")
+const tools = require('../common/tools')
 const Buff = require('./pbuff.js')
 const Page = require('./page.js')
 const Pidx = require('./pidx.js')
