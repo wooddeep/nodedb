@@ -16,15 +16,15 @@
 //  +-------+-------+
 //  + PCELL |  USED +            // 本节点在父节点的KV数组中的下标：2字节 | 本节点KV数组已使用的个数：2字节
 //  +-------+-------+
-//  |       |       |   
-//  |  KEY  |  VAL  |            // 一对KV值，K与V的长度可以配置，KV对的个数和K长度、V长度、以及页大小相关
-//  |       |       |   
+//  |       | TYPE  |   
+//  |  KEY  +-------+            // 一对KV值，K与V的长度可以配置，KV对的个数和K长度、V长度、以及页大小相关
+//  |       |  VAL  |   
 //  +-------+-------+
 //  |    ........   |
 //  +-------+-------+
-//  |       |       |   
-//  |  KEY  |  VAL  |
-//  |       |       |   
+//  |       | TYPE  |           // 值类型(1字节): (0 ~ 索引; 1 ~ number; 2 ~ string)
+//  |  KEY  +-------+ 
+//  |       |  VAL  |           // 具体值  
 //  +-------+-------+
 //
 
@@ -51,7 +51,12 @@ const {
     LOC_FOR_DELETE,
     TRANS_MERGE,
     TRANS_BORROW,
-    TRANS_SHRINK
+    TRANS_SHRINK,
+    VAL_TYPE_IDX,
+    VAL_TYPE_NUM,
+    VAL_TYPE_STR,
+    VAL_TYPE_FPN,
+    VAL_TYPE_UNK,
 } = require("./const.js")
 
 const winston = require('./winston/config')
@@ -317,24 +322,43 @@ class Bptree {
                 childPage.ocnt++
             }
         } catch (e) {
-            console.log(parent)
+            console.log(e)
         }
 
         parent.release()
+    }
+
+    valueType(value) {
+
+        if (typeof (value) == 'number') {
+            if (Number.isInteger(value)) {
+                return VAL_TYPE_NUM
+            } else {
+                return VAL_TYPE_FPN
+            }
+        }
+
+        if (typeof (value) == 'string') {
+            return VAL_TYPE_STR
+        }
+
+        return VAL_TYPE_UNK
     }
 
     /*
      * 如果targetPage的type为叶节点，则value代表具体值，如果type非叶子节点，则value则为子节点索引
      */
     async innerInsert(targetPage, key, value, pos = -1) {
-        // 插入
         targetPage.occupy()
         targetPage.dirty = true
         targetPage.ocnt++
         if (pos == -1) {
             pos = this.findInsertPos(key, targetPage) // 找到插入的cell槽位
         }
-        targetPage.cells.splice(pos, 0, this._page.newCell(key, value)) //  插入：splice(pos, <delete num> , value)
+
+        let valType = targetPage.type == NODE_TYPE_LEAF ? this.valueType(value) : VAL_TYPE_IDX
+        targetPage.cells.splice(pos, 0, this._page.newCell(key, value, valType)) //  插入：splice(pos, <delete num> , value)
+
         targetPage.used++
         if (targetPage.used <= ORDER_NUM) {
             targetPage.cells.shift() // remove left 
@@ -493,7 +517,15 @@ class Bptree {
         let targetPage = await this.locateLeaf(key, this.rootPage, LOC_FOR_SELECT) // 目标叶子节点
         for (var i = ORDER_NUM - 1; i >= 0; i--) {
             if (key.compare(targetPage.cells[i].key) == 0) { // 找到位置
-                return targetPage.cells[i].index
+                if (targetPage.cells[i].type == VAL_TYPE_NUM) {
+                    return targetPage.cells[i].index.readInt32LE()
+                }
+                if (targetPage.cells[i].type == VAL_TYPE_FPN) {
+                    return targetPage.cells[i].index.readFloatLE()
+                }
+                if (targetPage.cells[i].type == VAL_TYPE_STR) {
+                    return targetPage.cells[i].index.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+                }
             }
         }
         return undefined

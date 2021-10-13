@@ -6,6 +6,8 @@
 const {
     START_OFFSET,
     KEY_MAX_LEN,
+    VAL_TYPE_LEN,
+    VAL_IDX_LEN,
     PAGE_SIZE,
     ORDER_NUM,
     CELL_LEN,
@@ -20,8 +22,12 @@ const {
     PAGE_PREV_OFFSET,
     PARENT_CELL_OFFSET,
     CELL_USED_OFFSET,
-    VAL_IDX_LEN,
+    VAL_TYPE_IDX,
+    VAL_TYPE_NUM,
+    VAL_TYPE_STR,
+    VAL_TYPE_FPN,
 } = require("./const.js");
+const { buffer } = require("./tools.js");
 
 class Page {
 
@@ -55,7 +61,69 @@ class Page {
         return 'Hello, ' + name;
     }
 
-    newCell(keyBuf = undefined, value = 0) {
+    valueTrans(value, type) {
+        if (type == VAL_TYPE_IDX) {
+            return value
+
+        } else {
+            let buff = Buffer.alloc(VAL_IDX_LEN)
+            if (type == VAL_TYPE_NUM) {
+                buff.writeInt32LE(value) // TODO 区分 整形 和 浮点型
+            }
+            if (type == VAL_TYPE_FPN) {
+                buff.writeFloatLE(value) // TODO 区分 整形 和 浮点型
+            }
+            if (type == VAL_TYPE_STR) {
+                buff.write(value)
+            }
+
+            return buff
+        }
+    }
+
+    valueToBuff(value, type) {
+        let buff = Buffer.alloc(VAL_IDX_LEN)
+
+        if (type == VAL_TYPE_IDX) {
+            buff.writeInt32LE(value)
+        } else {
+            if (type == VAL_TYPE_NUM) {
+                buff.writeInt32LE(value) // TODO 区分 整形 和 浮点型
+            }
+            
+            if (type == VAL_TYPE_FPN) {
+                buff.writeFloatLE(value) // TODO 区分 整形 和 浮点型
+            }
+
+            if (type == VAL_TYPE_STR) {
+                value.copy(buff, 0, 0, VAL_IDX_LEN)
+            }
+        }
+        
+        return buff
+    }
+
+    buffToValue(type, buff, offset) {
+        if (type == VAL_TYPE_IDX) {
+            return buff.readInt32LE()
+
+        } else {
+            let buff = Buffer.alloc(VAL_IDX_LEN)
+            if (type == VAL_TYPE_NUM) {
+                return buff.readInt32LE()
+            }
+            if (type == VAL_TYPE_FPN) {
+                return buff.readFloatLE()
+            }
+
+            if (type == VAL_TYPE_STR) {
+                return buff.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+            }
+
+        }
+    }
+
+    newCell(keyBuf = undefined, value = 0, type = VAL_TYPE_IDX) {
         if (keyBuf == undefined) {
             keyBuf = Buffer.alloc(KEY_MAX_LEN)
         }
@@ -65,7 +133,8 @@ class Page {
 
         return {
             key: buffer,
-            index: value,
+            type: type,
+            index: this.valueTrans(value, type) /*value*/,
         }
     }
 
@@ -74,18 +143,31 @@ class Page {
         source.key.copy(buffer, 0, 0, KEY_MAX_LEN)
         return {
             key: buffer,
+            type: source.type,
             index: source.index,
         }
     }
 
-    parseCell(buf) {
+    buffToCell(buf) {
         var key = Buffer.alloc(KEY_MAX_LEN)
         buf.copy(key, 0, 0, KEY_MAX_LEN)
-        var index = buf.readInt32LE(KEY_MAX_LEN)
+        var type = buf.readInt8(KEY_MAX_LEN)
+        var index = this.buffToValue(type, buf, KEY_MAX_LEN + VAL_TYPE_LEN)
         return {
             key: key,
+            type: type,
             index: index,
         }
+    }
+
+    cellToBuff(cell) {
+        var buff = Buffer.alloc(CELL_LEN)
+        cell.key.copy(buff, 0, 0, KEY_MAX_LEN) // 键值
+        buff.writeInt8(cell.type, KEY_MAX_LEN) // 值类型
+        let valBuff = this.valueToBuff(cell.index, cell.type)
+        valBuff.copy(buff, KEY_MAX_LEN + VAL_TYPE_LEN, 0, VAL_IDX_LEN)
+
+        return buff
     }
 
     newPage(type) {
@@ -136,8 +218,8 @@ class Page {
         // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
         var cells = page.cells
         for (var ci = 0; ci < ORDER_NUM; ci++) {
-            cells[ci].key.copy(buff, cellStart + ci * cellLength, 0, KEY_MAX_LEN) // 键值
-            buff.writeInt32LE(cells[ci].index, cellStart + ci * cellLength + KEY_MAX_LEN) // 子节点索引值
+            let cellBuff = this.cellToBuff(cells[ci])
+            cellBuff.copy(buff, cellStart + ci * cellLength, 0, cellLength)
         }
 
         return buff
@@ -157,7 +239,7 @@ class Page {
         for (var index = 0; index < ORDER_NUM; index++) {
             var cellBuff = Buffer.alloc(CELL_LEN)
             buf.copy(cellBuff, 0, cellStart + index * cellLength, cellStart + (index + 1) * cellLength)
-            var cell = this.parseCell(cellBuff)
+            var cell = this.buffToCell(cellBuff)
             cells.push(cell)
         }
 
