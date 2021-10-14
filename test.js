@@ -228,14 +228,14 @@ async function test5() {
 
 /* 测试value为字符串 */
 async function test6() {
-    let bptree = new Bptree(3)
+    let bptree = new Bptree(3, 1024, 9 ,100)
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
-    await writeOne(bptree, 100, 'hello')
+    await writeOne(bptree, 100, 'hello world')
     await bptree.flush()
     let value = await find(bptree, 100)
-    assert.equal(value, 'hell')
+    assert.equal(value, 'hello world')
     await bptree.close()
 }
 
@@ -267,15 +267,15 @@ async function test8() {
 }
 
 const funcList = [
-    // test0,
-    // test1,
+    test0,
+    test1,
     test2,
-    // test3,
-    // test4,
-    // test5,
-    // test6,
-    // test7,
-    // test8
+    test3,
+    test4,
+    test5,
+    test6,
+    test7,
+    test8
 ]
 
 async function test() {

@@ -4,13 +4,8 @@
  */
 
 const {
-    KEY_MAX_LEN,
-    VAL_TYPE_LEN,
-    VAL_IDX_LEN,
-    PAGE_SIZE,
-    ORDER_NUM,
-    CELL_LEN,
     CELL_OFFSET,
+    VAL_TYPE_LEN,
     PAGE_TYPE_OFFSET,
     PAGE_PARENT_OFFSET,
     PAGE_NEXT_OFFSET,
@@ -22,7 +17,6 @@ const {
     VAL_TYPE_STR,
     VAL_TYPE_FPN,
 } = require("../common/const.js");
-const { buffer } = require("../common/tools.js");
 
 class Page {
 
@@ -49,6 +43,10 @@ class Page {
         this.cells = cells
     }
 
+    attach(bptree) {
+        this.bptree = bptree
+    }
+
     // 静态函数
     static sayHello(name) {
         return 'Hello, ' + name;
@@ -59,7 +57,7 @@ class Page {
             return value
 
         } else {
-            let buff = Buffer.alloc(VAL_IDX_LEN)
+            let buff = Buffer.alloc(this.bptree.VAL_IDX_LEN)
             if (type == VAL_TYPE_NUM) {
                 buff.writeInt32LE(value) // TODO 区分 整形 和 浮点型
             }
@@ -75,12 +73,12 @@ class Page {
     }
 
     valueToBuff(value, type) {
-        let buff = Buffer.alloc(VAL_IDX_LEN)
+        let buff = Buffer.alloc(this.bptree.VAL_IDX_LEN)
 
         if (type == VAL_TYPE_IDX) {
             buff.writeInt32LE(value)
         } else {
-            value.copy(buff, 0, 0, VAL_IDX_LEN)
+            value.copy(buff, 0, 0, this.bptree.VAL_IDX_LEN)
         }
 
         return buff
@@ -91,7 +89,7 @@ class Page {
             return buff.readInt32LE(offset)
 
         } else {
-            let strBuff = Buffer.alloc(VAL_IDX_LEN)
+            let strBuff = Buffer.alloc(this.bptree.VAL_IDX_LEN)
             buff.copy(strBuff, 0, offset)
             return strBuff
         }
@@ -99,11 +97,11 @@ class Page {
 
     newCell(keyBuf = undefined, value = 0, type = VAL_TYPE_IDX) {
         if (keyBuf == undefined) {
-            keyBuf = Buffer.alloc(KEY_MAX_LEN)
+            keyBuf = Buffer.alloc(this.bptree.KEY_MAX_LEN)
         }
 
-        let buffer = Buffer.alloc(KEY_MAX_LEN)
-        keyBuf.copy(buffer, 0, 0, KEY_MAX_LEN)
+        let buffer = Buffer.alloc(this.bptree.KEY_MAX_LEN)
+        keyBuf.copy(buffer, 0, 0, this.bptree.KEY_MAX_LEN)
 
         return {
             key: buffer,
@@ -113,8 +111,8 @@ class Page {
     }
 
     copyCell(source) {
-        let buffer = Buffer.alloc(KEY_MAX_LEN)
-        source.key.copy(buffer, 0, 0, KEY_MAX_LEN)
+        let buffer = Buffer.alloc(this.bptree.KEY_MAX_LEN)
+        source.key.copy(buffer, 0, 0, this.bptree.KEY_MAX_LEN)
         return {
             key: buffer,
             type: source.type,
@@ -123,10 +121,10 @@ class Page {
     }
 
     buffToCell(buf) {
-        var key = Buffer.alloc(KEY_MAX_LEN)
-        buf.copy(key, 0, 0, KEY_MAX_LEN)
-        var type = buf.readInt8(KEY_MAX_LEN)
-        var index = this.buffTrans(type, buf, KEY_MAX_LEN + VAL_TYPE_LEN)
+        var key = Buffer.alloc(this.bptree.KEY_MAX_LEN)
+        buf.copy(key, 0, 0, this.bptree.KEY_MAX_LEN)
+        var type = buf.readInt8(this.bptree.KEY_MAX_LEN)
+        var index = this.buffTrans(type, buf, this.bptree.KEY_MAX_LEN + VAL_TYPE_LEN)
         return {
             key: key,
             type: type,
@@ -135,19 +133,19 @@ class Page {
     }
 
     cellToBuff(cell) {
-        var buff = Buffer.alloc(CELL_LEN)
-        cell.key.copy(buff, 0, 0, KEY_MAX_LEN) // 键值
-        buff.writeInt8(cell.type, KEY_MAX_LEN) // 值类型
+        var buff = Buffer.alloc(this.bptree.CELL_LEN)
+        cell.key.copy(buff, 0, 0, this.bptree.KEY_MAX_LEN) // 键值
+        buff.writeInt8(cell.type, this.bptree.KEY_MAX_LEN) // 值类型
         let valBuff = this.valueToBuff(cell.index, cell.type)
         // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
-        valBuff.copy(buff, KEY_MAX_LEN + VAL_TYPE_LEN, 0, VAL_IDX_LEN)
+        valBuff.copy(buff, this.bptree.KEY_MAX_LEN + VAL_TYPE_LEN, 0, this.bptree.VAL_IDX_LEN)
 
         return buff
     }
 
     newPage(type) {
         var cells = []
-        for (var index = 0; index < ORDER_NUM; index++) {
+        for (var index = 0; index < this.bptree.ORDER_NUM; index++) {
             var cell = this.newCell()
             cells.push(cell)
         }
@@ -174,13 +172,13 @@ class Page {
         target.pcell = source.pcell
         target.used = source.used
 
-        for (var index = 0; index < ORDER_NUM; index++) {
+        for (var index = 0; index < this.bptree.ORDER_NUM; index++) {
             target.cells[index] = this.copyCell(source.cells[index])
         }
     }
 
     pageToBuff(page) {
-        let buff = Buffer.alloc(PAGE_SIZE)
+        let buff = Buffer.alloc(this.bptree.PAGE_SIZE)
         buff.writeInt32LE(page.type, PAGE_TYPE_OFFSET)
         buff.writeInt32LE(page.parent, PAGE_PARENT_OFFSET)
         buff.writeInt32LE(page.next, PAGE_NEXT_OFFSET)
@@ -188,11 +186,11 @@ class Page {
         buff.writeInt16LE(page.pcell, PARENT_CELL_OFFSET)
         buff.writeInt16LE(page.used, CELL_USED_OFFSET)
         var cellStart = CELL_OFFSET
-        var cellLength = CELL_LEN
+        var cellLength = this.bptree.CELL_LEN
 
         // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
         var cells = page.cells
-        for (var ci = 0; ci < ORDER_NUM; ci++) {
+        for (var ci = 0; ci < this.bptree.ORDER_NUM; ci++) {
             let cellBuff = this.cellToBuff(cells[ci])
             cellBuff.copy(buff, cellStart + ci * cellLength, 0, cellLength)
         }
@@ -208,11 +206,11 @@ class Page {
         var pcell = buf.readInt16LE(PARENT_CELL_OFFSET)
         var used = buf.readInt16LE(CELL_USED_OFFSET) // 已经使用的cell
         var cellStart = CELL_OFFSET
-        var cellLength = CELL_LEN
+        var cellLength = this.bptree.CELL_LEN
 
         var cells = []
-        for (var index = 0; index < ORDER_NUM; index++) {
-            var cellBuff = Buffer.alloc(CELL_LEN)
+        for (var index = 0; index < this.bptree.ORDER_NUM; index++) {
+            var cellBuff = Buffer.alloc(this.bptree.CELL_LEN)
             buf.copy(cellBuff, 0, cellStart + index * cellLength, cellStart + (index + 1) * cellLength)
             var cell = this.buffToCell(cellBuff)
             cells.push(cell)

@@ -1,12 +1,8 @@
 const winston = require('../winston/config')
 const fileops = require('../common/fileops')
-var Page = require('./page.js')
-const _page = new Page() // 默认构造函数
 
 const {
-    START_OFFSET,
-    PAGE_SIZE,
-    ORDER_NUM,
+    START_OFFSET
 } = require("../common/const.js")
 
 class PageBuff {
@@ -16,6 +12,11 @@ class PageBuff {
         this.pidx = pidx
         this.map = {}
         this.id = 0
+    }
+
+    attach(bptree) {
+        this.bptree = bptree
+        this._page = this.bptree._page
     }
 
     setFileId(fd) {
@@ -30,9 +31,11 @@ class PageBuff {
 
         let target = this.map[index]
         if (target == undefined) { // 没有找到目标页
-            let buff = Buffer.alloc(PAGE_SIZE)
-            await fileops.readFile(this.fd, buff, START_OFFSET, PAGE_SIZE, PAGE_SIZE * index) // 读目标页
-            let pageNode = _page.buffToPage(buff)
+            let buff = Buffer.alloc(this.bptree.PAGE_SIZE)
+            await fileops.readFile(this.fd, buff, START_OFFSET,
+                this.bptree.PAGE_SIZE, this.bptree.PAGE_SIZE * index) // 读目标页
+
+            let pageNode = this._page.buffToPage(buff)
             pageNode.index = index
             await this.setPageNode(index, pageNode) // 目标页加入缓存
             target = pageNode
@@ -57,13 +60,13 @@ class PageBuff {
         if (size > this.size) {
 
             let array = Object.keys(this.map).filter(x => x != 0).filter(x => this.map[x].index != index)
-                .filter(x => this.map[x].used <= ORDER_NUM)
+                .filter(x => this.map[x].used <= this.bptree.ORDER_NUM)
 
             if (array.length > 0) {
                 let toDelIndex = array.sort((a, b) => { return this.map[a].ts - this.map[b].ts; })[0];
                 let page = this.map[toDelIndex]
-                var buff = _page.pageToBuff(page)
-                await fileops.writeFile(this.fd, buff, 0, PAGE_SIZE, page.index * PAGE_SIZE)
+                var buff = this._page.pageToBuff(page)
+                await fileops.writeFile(this.fd, buff, 0, this.bptree.PAGE_SIZE, page.index * this.bptree.PAGE_SIZE)
                 delete this.map[toDelIndex]
             } else {
                 winston.error("@@@@ buff size is insufficent!")
