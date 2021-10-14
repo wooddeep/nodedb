@@ -32,20 +32,14 @@
 const {
     START_OFFSET,
     KEY_MAX_LEN,
+    VAL_TYPE_LEN,
+    VAL_IDX_LEN,
     PAGE_SIZE,
-    ORDER_NUM,
-    CELL_LEN,
-    CELL_OFFSET,
-    MORE_HALF_NUM,
+    HEAD_LEN,
     NODE_TYPE_LEAF,
     NODE_TYPE_STEM,
     NODE_TYPE_ROOT,
     NODE_TYPE_FREE,
-    PAGE_TYPE_OFFSET,
-    PAGE_PARENT_OFFSET,
-    PAGE_NEXT_OFFSET,
-    PAGE_PREV_OFFSET,
-    CELL_USED_OFFSET,
     LOC_FOR_INSERT,
     LOC_FOR_SELECT,
     LOC_FOR_DELETE,
@@ -76,15 +70,32 @@ Buffer.prototype.compare = function (to) {
 
 class Bptree {
 
-    constructor(bs = 1000) {
+    constructor(
+        buffSize = 1000,
+        pageSize = PAGE_SIZE,
+        keyMaxLen = KEY_MAX_LEN,
+        valMaxLen = VAL_IDX_LEN
+    ) {
         this.fileId = undefined
         this.rootPage = undefined // 根页面 
         this.freeNext = 0
         this.freePrev = 0
-        this._page = new Page()
+        this.buffSize = buffSize
+
+        this.PAGE_SIZE = pageSize
+        this.KEY_MAX_LEN = keyMaxLen
+        this.VAL_IDX_LEN = valMaxLen
+        this.CELL_LEN = this.KEY_MAX_LEN + VAL_TYPE_LEN + this.VAL_IDX_LEN
+        this.ORDER_NUM = Math.floor((this.PAGE_SIZE - HEAD_LEN) / this.CELL_LEN)   // b+树的阶
+        this.LESS_HALF_NUM = Math.floor(this.ORDER_NUM / 2)  // 少的一半
+        this.MORE_HALF_NUM = Math.ceil(this.ORDER_NUM / 2)   // 多的一半
         this._pidx = new Pidx()
-        this.buffSize = bs
+        
+        this._page = new Page()
+        this._page.attach(this)
+
         this._buff = new Buff(this.buffSize, this._pidx)
+        this._buff.attach(this)
     }
 
     getBuffer() {
@@ -140,9 +151,9 @@ class Bptree {
         this._buff.setFileId(this.fileId)
         let stat = await fileops.statFile(this.fileId)
         winston.info("file size = " + stat.size)
-        this._pidx.set(Math.floor(stat.size / PAGE_SIZE)) // 数据库文件所占的总页数
+        this._pidx.set(Math.floor(stat.size / this.PAGE_SIZE)) // 数据库文件所占的总页数
 
-        if (stat.size < PAGE_SIZE) { // 空文件
+        if (stat.size < this.PAGE_SIZE) { // 空文件
             this.rootPage = await this.fetchPageNode(NODE_TYPE_ROOT)    // 新生成一个根页面
             this.rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
             this.rootPage.next = 0        // rootPage的prev和next指向自己，用于空闲链表
@@ -151,17 +162,17 @@ class Bptree {
             return this.fileId
         }
 
-        let buff = Buffer.alloc(PAGE_SIZE)
-        let bytes = await fileops.readFile(this.fileId, buff, START_OFFSET, PAGE_SIZE, 0) // 文件第一页，始终放置root页
+        let buff = Buffer.alloc(this.PAGE_SIZE)
+        let bytes = await fileops.readFile(this.fileId, buff, START_OFFSET, this.PAGE_SIZE, 0) // 文件第一页，始终放置root页
         this.rootPage = await this._page.buffToPage(buff)
         this.rootPage.index = 0
         await this._buff.setPageNode(0, this.rootPage)
 
-        let minSize = this.buffSize * PAGE_SIZE > stat.size ? stat.size : this.buffSize * PAGE_SIZE
-        for (var index = PAGE_SIZE; index < minSize; index += PAGE_SIZE) {
-            await fileops.readFile(this.fileId, buff, START_OFFSET, PAGE_SIZE, index) // 非root页
+        let minSize = this.buffSize * this.PAGE_SIZE > stat.size ? stat.size : this.buffSize * this.PAGE_SIZE
+        for (var index = this.PAGE_SIZE; index < minSize; index += this.PAGE_SIZE) {
+            await fileops.readFile(this.fileId, buff, START_OFFSET, this.PAGE_SIZE, index) // 非root页
             let pageNode = this._page.buffToPage(buff)
-            let pageIndex = Math.floor(index / PAGE_SIZE)
+            let pageIndex = Math.floor(index / this.PAGE_SIZE)
             pageNode.index = pageIndex
             await this._buff.setPageNode(pageIndex, pageNode)
         }
@@ -177,25 +188,25 @@ class Bptree {
      *    @right: 右节点
      */
     async rebuildRoot(page, left, right) {
-        for (var index = 0; index < ORDER_NUM - 2; index++) {
+        for (var index = 0; index < this.ORDER_NUM - 2; index++) {
             var cell = this._page.newCell()
             page.cells[index] = cell
         }
 
-        page.cells[ORDER_NUM - 2] = this._page.newCell(left.cells[ORDER_NUM - 1].key, left.index)
-        page.cells[ORDER_NUM - 1] = this._page.newCell(right.cells[ORDER_NUM - 1].key, right.index)
+        page.cells[this.ORDER_NUM - 2] = this._page.newCell(left.cells[this.ORDER_NUM - 1].key, left.index)
+        page.cells[this.ORDER_NUM - 1] = this._page.newCell(right.cells[this.ORDER_NUM - 1].key, right.index)
         page.prev = -1
         page.used = 2 // 左右两个子节点
 
         // left节点以及right节点的子节点的parent设置成自身
         for (var idx = 0; idx < left.used; idx++) {
-            var childIndex = left.cells[ORDER_NUM - 1 - idx].index
+            var childIndex = left.cells[this.ORDER_NUM - 1 - idx].index
             let page = await this._buff.getPageNode(childIndex, true)
             page.parent = left.index
         }
 
         for (var idx = 0; idx < right.used; idx++) {
-            var childIndex = right.cells[ORDER_NUM - 1 - idx].index
+            var childIndex = right.cells[this.ORDER_NUM - 1 - idx].index
             let page = await this._buff.getPageNode(childIndex, true)
             page.parent = right.index
         }
@@ -205,8 +216,8 @@ class Bptree {
         left.prev = -1
         right.next = -1
 
-        left.pcell = ORDER_NUM - 2
-        right.pcell = ORDER_NUM - 1
+        left.pcell = this.ORDER_NUM - 2
+        right.pcell = this.ORDER_NUM - 1
         await this.setChildPcell(left)
         await this.setChildPcell(right)
 
@@ -237,7 +248,7 @@ class Bptree {
             pageIndex = cells[maxIndex].index
             cellIndex = maxIndex
         }
-        let minIndx = currPage.used > 0 ? ORDER_NUM - currPage.used : ORDER_NUM - 1
+        let minIndx = currPage.used > 0 ? this.ORDER_NUM - currPage.used : this.ORDER_NUM - 1
         if (key.compare(cells[minIndx].key) <= 0) {
             pageIndex = cells[minIndx].index
             if (locType == LOC_FOR_INSERT) { //  小于最小键值
@@ -282,7 +293,7 @@ class Bptree {
      * 如果page的类型为NODE_TYPE_LEAF, 则pos随便插入, 否则需要比较值页内值
      */
     findInsertPos(key, page) {
-        for (var i = ORDER_NUM - 1; i >= 0; i--) {
+        for (var i = this.ORDER_NUM - 1; i >= 0; i--) {
             if (key.compare(page.cells[i].key) >= 0) { // 找到位置
                 let pos = i + 1
                 return pos
@@ -299,7 +310,7 @@ class Bptree {
 
     async setChildPcell(parent) {
         for (var i = 0; i < parent.used; i++) {
-            let cellIndex = ORDER_NUM - 1 - i
+            let cellIndex = this.ORDER_NUM - 1 - i
             let childIndex = parent.cells[cellIndex].index
             let childPage = await this._buff.getPageNode(childIndex, true)
             childPage.pcell = cellIndex // 重新设置pcell
@@ -339,11 +350,11 @@ class Bptree {
         targetPage.cells.splice(pos, 0, this._page.newCell(key, value, valType)) //  插入：splice(pos, <delete num> , value)
 
         targetPage.used++
-        if (targetPage.used <= ORDER_NUM) {
+        if (targetPage.used <= this.ORDER_NUM) {
             targetPage.cells.shift() // remove left 
         }
 
-        if (targetPage.used == ORDER_NUM + 1) { // 若插入后, 节点包含关键字数大于阶数, 则分裂
+        if (targetPage.used == this.ORDER_NUM + 1) { // 若插入后, 节点包含关键字数大于阶数, 则分裂
             if (targetPage.type == NODE_TYPE_ROOT) { // 缓存头结点的freelist信息
                 this.freeNext = targetPage.next
                 this.freePrev = targetPage.prev
@@ -369,9 +380,9 @@ class Bptree {
             targetPage.dirty = true
 
             // 1. 把原来的页的cells的前半部分挪入新页的cells, 清除原来页的cells的前半部分
-            brotherPage.used = MORE_HALF_NUM
-            for (var i = MORE_HALF_NUM - 1; i >= 0; i--) {
-                brotherPage.cells[(ORDER_NUM - 1) - (MORE_HALF_NUM - 1 - i)] = targetPage.cells[i]
+            brotherPage.used = this.MORE_HALF_NUM
+            for (var i = this.MORE_HALF_NUM - 1; i >= 0; i--) {
+                brotherPage.cells[(this.ORDER_NUM - 1) - (this.MORE_HALF_NUM - 1 - i)] = targetPage.cells[i]
                 if (brotherPage.type > NODE_TYPE_LEAF) {
                     let childIndex = targetPage.cells[i].index
                     let childPage = await this._buff.getPageNode(childIndex, true)
@@ -380,7 +391,7 @@ class Bptree {
                 targetPage.cells[i] = this._page.newCell()
             }
 
-            targetPage.used = ORDER_NUM + 1 - MORE_HALF_NUM
+            targetPage.used = this.ORDER_NUM + 1 - this.MORE_HALF_NUM
             targetPage.cells.shift() // 补充，把左侧多余的一个删除
 
             if (targetPage.type == NODE_TYPE_ROOT) { // 如果分裂了root节点
@@ -397,7 +408,7 @@ class Bptree {
                 brotherPage.parent = 0
                 brotherPage.next = moveIndex
                 for (var i = 0; i < movePage.used; i++) {  // move 之后，其子节点的parent需要修改
-                    let childIndex = movePage.cells[ORDER_NUM - 1 - i].index
+                    let childIndex = movePage.cells[this.ORDER_NUM - 1 - i].index
                     let childPage = await this._buff.getPageNode(childIndex, true)
                     childPage.parent = moveIndex
                 }
@@ -409,7 +420,7 @@ class Bptree {
 
             // 2. 新页的键值和页号(index)插入到父节点
             await this.innerInsert(await this._buff.getPageNode(brotherPage.parent),
-                brotherPage.cells[ORDER_NUM - 1].key, brotherPage.index, targetPage.pcell)
+                brotherPage.cells[this.ORDER_NUM - 1].key, brotherPage.index, targetPage.pcell)
 
             // 3. 重建brother pcell
             if (brotherPage.type > NODE_TYPE_LEAF) { // 非叶子节点
@@ -431,7 +442,7 @@ class Bptree {
     }
 
     needUpdateMax(key) {
-        if (key.compare(this.rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大键值 
+        if (key.compare(this.rootPage.cells[this.ORDER_NUM - 1].key) > 0) { // 大于最大键值 
             return true
         }
         return false
@@ -443,8 +454,8 @@ class Bptree {
     async updateMaxToLeaf(page, key) {
         page.dirty = true
         page.ocnt++
-        key.copy(page.cells[ORDER_NUM - 1].key, 0, 0, KEY_MAX_LEN)
-        let childIndex = page.cells[ORDER_NUM - 1].index
+        key.copy(page.cells[this.ORDER_NUM - 1].key, 0, 0, this.KEY_MAX_LEN)
+        let childIndex = page.cells[this.ORDER_NUM - 1].index
 
         let childPage = await this._buff.getPageNode(childIndex, true)
         if (childIndex > 0 && childPage.type > NODE_TYPE_LEAF) {
@@ -463,12 +474,12 @@ class Bptree {
         page.ocnt++
         let upParent = false
         if (page.cells[pcell].key.compare(now) != 0) { // 替换, 值不一样就需要替换，不一定是大于
-            now.copy(page.cells[pcell].key, 0, 0, KEY_MAX_LEN)  // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
+            now.copy(page.cells[pcell].key, 0, 0, this.KEY_MAX_LEN)  // buf.copy(targetBuffer[, targetStart[, sourceStart[, sourceEnd]]])
             upParent = true
         }
 
         let parentPage = await this._buff.getPageNode(page.parent, true)
-        if (upParent && parentPage != undefined && pcell == ORDER_NUM - 1) {
+        if (upParent && parentPage != undefined && pcell == this.ORDER_NUM - 1) {
             await this.updateMaxToRoot(parentPage, page.pcell, old, now)
         }
 
@@ -487,7 +498,7 @@ class Bptree {
 
     async select(key) {
         let targetPage = await this.locateLeaf(key, this.rootPage, LOC_FOR_SELECT) // 目标叶子节点
-        for (var i = ORDER_NUM - 1; i >= 0; i--) {
+        for (var i = this.ORDER_NUM - 1; i >= 0; i--) {
             if (key.compare(targetPage.cells[i].key) == 0) { // 找到位置
                 if (targetPage.cells[i].type == VAL_TYPE_NUM) {
                     return targetPage.cells[i].index.readInt32LE()
@@ -510,7 +521,7 @@ class Bptree {
         if (page.prev > 0) {
             let prevIndex = page.prev
             let prevPage = await this._buff.getPageNode(prevIndex, false)
-            if (prevPage.used + page.used <= ORDER_NUM) {
+            if (prevPage.used + page.used <= this.ORDER_NUM) {
                 return {
                     "method": TRANS_MERGE,
                     "index": prevIndex,
@@ -526,7 +537,7 @@ class Bptree {
         if (page.next > 0) {
             let nextIndex = page.next
             let nextPage = await this._buff.getPageNode(nextIndex, false)
-            if (nextPage.used + page.used <= ORDER_NUM) {
+            if (nextPage.used + page.used <= this.ORDER_NUM) {
                 return {
                     "method": TRANS_MERGE,
                     "index": nextIndex,
@@ -565,11 +576,11 @@ class Bptree {
         // 1. 把from的kv值逐一挪动到to, 并修改prev与next指针
         to.dirty = true
         to.ocnt++
-        let beDel = from.cells[ORDER_NUM - 1]
+        let beDel = from.cells[this.ORDER_NUM - 1]
         if (from.next == to.index) { // 向兄节点merge，本页的值小于兄节点的值
             for (var i = 0; i < from.used; i++) {
-                let fromCell = from.cells[ORDER_NUM - 1 - i]
-                to.cells.splice(ORDER_NUM - 1 - to.used, 1, fromCell) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
+                let fromCell = from.cells[this.ORDER_NUM - 1 - i]
+                to.cells.splice(this.ORDER_NUM - 1 - to.used, 1, fromCell) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
                 to.used++
             }
 
@@ -584,10 +595,10 @@ class Bptree {
         }
 
         if (from.prev == to.index) { // 向弟节点merge，本页的值大于于兄节点的值
-            let old = to.cells[ORDER_NUM - 1].key
+            let old = to.cells[this.ORDER_NUM - 1].key
             for (var i = 0; i < from.used; i++) {
-                let fromCell = from.cells[ORDER_NUM - from.used + i]
-                to.cells.splice(ORDER_NUM, 0, fromCell) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
+                let fromCell = from.cells[this.ORDER_NUM - from.used + i]
+                to.cells.splice(this.ORDER_NUM, 0, fromCell) //  替换原来的值 # 插入：splice(pos, <delete num> , value)
                 to.used++
                 to.cells.shift() // remove left 
             }
@@ -602,7 +613,7 @@ class Bptree {
             }
 
             // 更新to页面的最大值
-            let now = to.cells[ORDER_NUM - 1].key
+            let now = to.cells[this.ORDER_NUM - 1].key
             let ppage = await this._buff.getPageNode(to.parent, false)
             if (now.compare(old) != 0) { // 值不一样则更新
                 await this.updateMaxToRoot(ppage, to.pcell, old, now)
@@ -617,7 +628,7 @@ class Bptree {
         // 2. 把from页面子节点的父节点索引替换成to页面的索引
         if (from.type > NODE_TYPE_LEAF) {
             for (var i = 0; i < from.used; i++) {
-                let childPage = await this._buff.getPageNode(from.cells[ORDER_NUM - 1 - i].index, true)
+                let childPage = await this._buff.getPageNode(from.cells[this.ORDER_NUM - 1 - i].index, true)
                 childPage.dirty = true
                 childPage.ocnt++
                 childPage.parent = to.index
@@ -640,7 +651,7 @@ class Bptree {
         // 更新parent对应child的kv的pcell
         await this.setChildPcell(parent)
 
-        if (parent.used < MORE_HALF_NUM && parent.used > 0) { // 判断是否需要对parent进行借用或者合并
+        if (parent.used < this.MORE_HALF_NUM && parent.used > 0) { // 判断是否需要对parent进行借用或者合并
             if (parent.type < NODE_TYPE_ROOT) {
                 let ret = await this.transDecide(parent)
                 if (ret.method == TRANS_MERGE) {
@@ -670,40 +681,40 @@ class Bptree {
         from.ocnt++
 
         if (from.index == to.prev) { // 向弟节点borrow
-            beMov = from.cells[ORDER_NUM - 1] // 需要移动的cell
-            from.cells.splice(ORDER_NUM - 1, 1) // 删除from的最大值
+            beMov = from.cells[this.ORDER_NUM - 1] // 需要移动的cell
+            from.cells.splice(this.ORDER_NUM - 1, 1) // 删除from的最大值
             let cell = this._page.newCell()
             from.cells.splice(0, 0, cell) // 从左侧补充一个
             from.used--
 
             // 更新from页面的最大值
             let old = beMov.key
-            let now = from.cells[ORDER_NUM - 1].key
+            let now = from.cells[this.ORDER_NUM - 1].key
             let ppage = await this._buff.getPageNode(from.parent, false)
             if (now.compare(old) != 0) { // 值不一样则更新
                 await this.updateMaxToRoot(ppage, from.pcell, old, now)
             }
 
-            to.cells.splice(ORDER_NUM - 1 - to.used, 1, beMov) // 移动到to页面中, 作为to页面的最小值，并替换原来的空值
+            to.cells.splice(this.ORDER_NUM - 1 - to.used, 1, beMov) // 移动到to页面中, 作为to页面的最小值，并替换原来的空值
             to.used++
         }
 
         if (from.index == to.next) { // 向兄节点borrow
-            beMov = from.cells[ORDER_NUM - from.used] // 需要移动的cell
-            from.cells.splice(ORDER_NUM - from.used, 1) // 删除from的最小值
+            beMov = from.cells[this.ORDER_NUM - from.used] // 需要移动的cell
+            from.cells.splice(this.ORDER_NUM - from.used, 1) // 删除from的最小值
             let cell = this._page.newCell()
             from.cells.splice(0, 0, cell) // 从左侧补充一个
             from.used--
 
             // 更新to页面的最大值
             let now = beMov.key
-            let old = from.cells[ORDER_NUM - 1].key
+            let old = from.cells[this.ORDER_NUM - 1].key
             let ppage = await this._buff.getPageNode(to.parent, false)
             if (now.compare(old) != 0) { // 值不一样则更新
                 await this.updateMaxToRoot(ppage, to.pcell, old, now)
             }
 
-            to.cells.splice(ORDER_NUM, 0, beMov) // 移动到to页面中, 作为to页面的最大值
+            to.cells.splice(this.ORDER_NUM, 0, beMov) // 移动到to页面中, 作为to页面的最大值
             to.cells.shift()
             to.used++
         }
@@ -726,14 +737,14 @@ class Bptree {
 
     async remove(kbuf) {
 
-        if (kbuf.compare(this.rootPage.cells[ORDER_NUM - 1].key) > 0) { // 大于最大值
+        if (kbuf.compare(this.rootPage.cells[this.ORDER_NUM - 1].key) > 0) { // 大于最大值
             winston.error(`[0] key: ${tools.int32le(kbuf)} not found`)
             return false
         }
 
         let targetPage = await this.locateLeaf(kbuf, this.rootPage, LOC_FOR_DELETE) // 目标叶子节点
         let cellIndex = undefined
-        for (var i = ORDER_NUM - 1; i >= 0; i--) {
+        for (var i = this.ORDER_NUM - 1; i >= 0; i--) {
             if (kbuf.compare(targetPage.cells[i].key) == 0) { // 找到位置
                 cellIndex = i
                 break
@@ -748,11 +759,11 @@ class Bptree {
         // 1. 开始进行实际的删除操作
         targetPage.dirty = true
         targetPage.ocnt++
-        let old = targetPage.cells[ORDER_NUM - 1].key
+        let old = targetPage.cells[this.ORDER_NUM - 1].key
         targetPage.cells.splice(cellIndex, 1) // 删除从cellIndex下标开始的1个元素
         targetPage.used-- // 减去使用的个数
 
-        if (targetPage.cells.length < ORDER_NUM) { // 删除使数据槽位变少
+        if (targetPage.cells.length < this.ORDER_NUM) { // 删除使数据槽位变少
             let cell = this._page.newCell()
             targetPage.cells.splice(0, 0, cell) // 则需要从左侧补充一个
         }
@@ -762,16 +773,16 @@ class Bptree {
         }
 
         // 2. 若删除的值是该页的最大值，则需要更新父节点的kv值
-        if (cellIndex == ORDER_NUM - 1 && targetPage.used > 0) {
-            let now = targetPage.cells[ORDER_NUM - 1].key
+        if (cellIndex == this.ORDER_NUM - 1 && targetPage.used > 0) {
+            let now = targetPage.cells[this.ORDER_NUM - 1].key
             let ppage = await this._buff.getPageNode(targetPage.parent, false)
             if (now.compare(old) != 0) { // 值不一样则更新, 且本页有cell被使用
                 await this.updateMaxToRoot(ppage, targetPage.pcell, old, now)
             }
         }
 
-        // 3. 删除数据后，节点的使用数目小于 MORE_HALF_NUM, 则需要归并或借用
-        if (targetPage.used < MORE_HALF_NUM && targetPage.used > 0) {
+        // 3. 删除数据后，节点的使用数目小于多一半(More half num), 则需要归并或借用
+        if (targetPage.used < this.MORE_HALF_NUM && targetPage.used > 0) {
             let ret = await this.transDecide(targetPage)
             if (ret.method == TRANS_MERGE) {
                 await this.merge(targetPage, await this._buff.getPageNode(ret.index, false))
@@ -792,7 +803,7 @@ class Bptree {
             var page = await this._buff.getPageNode(index, true)
             if (page != undefined && page.dirty == true) {
                 var buff = this._page.pageToBuff(page)
-                await fileops.writeFile(this.fileId, buff, 0, PAGE_SIZE, index * PAGE_SIZE)
+                await fileops.writeFile(this.fileId, buff, 0, this.PAGE_SIZE, index * this.PAGE_SIZE)
             }
         }
         await fileops.syncFile(this.fileId)

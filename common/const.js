@@ -59,7 +59,6 @@ const CELL_OFFSET = CELL_USED_OFFSET + CELL_USED_LEN              // 存KV值的
 const HEAD_LEN = CELL_OFFSET
 
 const CELL_LEN = KEY_MAX_LEN + VAL_TYPE_LEN + VAL_IDX_LEN         // 每一对KV的长度
-
 const ORDER_NUM = Math.floor((PAGE_SIZE - HEAD_LEN) / CELL_LEN)   // b+树的阶
 const LESS_HALF_NUM = Math.floor(ORDER_NUM / 2)  // 少的一半
 const MORE_HALF_NUM = Math.ceil(ORDER_NUM / 2)   // 多的一半
@@ -80,6 +79,7 @@ var constant = {
     VAL_TYPE_LEN: VAL_TYPE_LEN,
     VAL_IDX_LEN: VAL_IDX_LEN,
     PAGE_SIZE: PAGE_SIZE,
+    HEAD_LEN: HEAD_LEN,
     LESS_HALF_NUM: LESS_HALF_NUM,
     MORE_HALF_NUM: MORE_HALF_NUM,
     ORDER_NUM: ORDER_NUM,

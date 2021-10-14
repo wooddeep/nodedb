@@ -5,10 +5,8 @@
 ## 2. 测试 
 ```javascript
 const winston = require('./winston/config');
-const Bptree = require("./bptree.js");
-const fileops = require("./fileops.js");
-const constant = require("./const.js");
-const tools = require('./tools')
+const Bptree = require("./bptree/bptree.js");
+const tools = require('./common/tools');
 const assert = require('assert');
 
 function random(min, max) {
@@ -19,9 +17,6 @@ async function writeRange(bptree, a, b) {
     if (a >= b) {
         for (var value = a; value >= b; value--) {
             let kbuf = tools.buffer(value)
-            if (value === 85) {
-                console.log(`catch`)
-            }
             await bptree.insert(kbuf, value)
         }
     } else {
@@ -32,8 +27,8 @@ async function writeRange(bptree, a, b) {
     }
 }
 
-async function writeOne(bptree, value) {
-    let kbuf = tools.buffer(value)
+async function writeOne(bptree, key, value) {
+    let kbuf = tools.buffer(key)
     await bptree.insert(kbuf, value)
 }
 
@@ -47,7 +42,7 @@ async function writeAny(bptree, keys) {
 
 async function find(bptree, key) {
     let kbuf = tools.buffer(key)
-    let value = bptree.select(kbuf)
+    let value = await bptree.select(kbuf)
     winston.info("value = " + value)
     return value
 }
@@ -85,7 +80,7 @@ async function removeRange(bptree, a, b) {
 }
 
 async function test0() {
-    let bptree = new Bptree()
+    let bptree = new Bptree(4)
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
@@ -98,15 +93,15 @@ async function test0() {
 }
 
 async function test1() {
-    let bptree = new Bptree()
+    let bptree = new Bptree(2)
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
 
     await writeRange(bptree, 100, 97)
     await removeAny(bptree, [100, 99, 98, 97])
-    await writeOne(bptree, 100)
-    await writeOne(bptree, 99)
+    await writeOne(bptree, 100, 100)
+    await writeOne(bptree, 99, 99)
 
     let value = await find(bptree, 100)
     assert.equal(value, 100)
@@ -118,9 +113,8 @@ async function test1() {
     await bptree.close()
 }
 
-
 async function test2() {
-    let bptree = new Bptree()
+    let bptree = new Bptree(300)
     let dbname = "test.db"
     try {
         await bptree.drop(dbname)
@@ -130,20 +124,20 @@ async function test2() {
 
     await bptree.init(dbname)
 
-    await writeRange(bptree, 1000, 0)
+    await writeRange(bptree, 100000, 0)
 
-    for (var i = 0; i < 1000; i++) {
+    for (var i = 0; i < 100000; i++) {
         let value = await find(bptree, i)
         assert.equal(value, i)
     }
 
     await bptree.flush()
+    winston.error(`$$ the buffer's final size is: ${bptree.getBuffer().buffSize()}`)
     await bptree.close()
 }
 
-
 async function test3() {
-    let bptree = new Bptree()
+    let bptree = new Bptree(10)
     let dbname = "test.db"
     try {
         await bptree.drop(dbname)
@@ -167,7 +161,7 @@ async function test3() {
 
 /* dynamic data insert and delete test! */
 async function test4() {
-    let bptree = new Bptree()
+    let bptree = new Bptree(50)
     let array = []
     let number = array.length > 0 ? array.length : 1000
     if (array.length == 0) {
@@ -200,7 +194,7 @@ async function test4() {
 }
 
 async function test5() {
-    let bptree = new Bptree()
+    let bptree = new Bptree(50)
     let array = []
     let number = array.length > 0 ? array.length : 1000
     if (array.length == 0) {
@@ -208,7 +202,7 @@ async function test5() {
             array.push(random(0, 1000))
         }
     }
-    winston.error(array)
+    winston.info(array)
 
     let dbname = "test5.db"
     try {
@@ -238,13 +232,61 @@ async function test5() {
     await bptree.close()
 }
 
-const funcList = [test0, test1, test2, test3, test4, test5]
-const filterOut = [/*test0, test2, test1,  test4 */]
+/* 测试value为字符串 */
+async function test6() {
+    let bptree = new Bptree(3)
+    let dbname = "test.db"
+    await bptree.drop(dbname)
+    await bptree.init(dbname)
+    await writeOne(bptree, 100, 'hello')
+    await bptree.flush()
+    let value = await find(bptree, 100)
+    assert.equal(value, 'hell')
+    await bptree.close()
+}
+
+/* 测试value为浮点数 */
+async function test7() {
+    let bptree = new Bptree(3)
+    let dbname = "test.db"
+    await bptree.drop(dbname)
+    await bptree.init(dbname)
+    await writeOne(bptree, 100, 1.2345)
+    await bptree.flush()
+    let value = await find(bptree, 100)
+    winston.error(`## map[100] = ${value}`)
+    await bptree.close()
+}
+
+
+async function test8() {
+    let bptree = new Bptree(500)
+    let dbname = "test.db"
+
+    await bptree.init(dbname)
+
+    let value = await find(bptree, 29321)
+    winston.error(`value = ${value}`)
+
+
+    await bptree.close()
+}
+
+const funcList = [
+    test0,
+    test1,
+    test2,
+    test3,
+    test4,
+    test5,
+    test6,
+    test7,
+    test8
+]
 
 async function test() {
-    funs = funcList.filter(x => !filterOut.includes(x))
-    for (var i = 0; i < funs.length; i++) {
-        func = funs[i]
+    for (var i = 0; i < funcList.length; i++) {
+        func = funcList[i]
         winston.error(`>>>>>>>>>(${func.name})`)
         await func()
         winston.error(`<<<<<<<<<(${func.name})`)
@@ -257,7 +299,7 @@ test()
 </br>
 
 ## 3. 图解
-设计每个页节点，最多可以放入3个数据，order为3  
+为了调试、说明、理解方便，设计每个页节点，最多可以放入3个数据即order为3，当然实际的b+树页面不可能只存三个数据，可以增加PAGE_SIZE值来增加页面存储数据的个数。  
 
 </br>
 
