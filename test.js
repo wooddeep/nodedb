@@ -107,9 +107,8 @@ async function test1() {
     await bptree.close()
 }
 
-
 async function test2() {
-    let bptree = new Bptree(500)
+    let bptree = new Bptree(300)
     let dbname = "test.db"
     try {
         await bptree.drop(dbname)
@@ -132,7 +131,7 @@ async function test2() {
 }
 
 async function test3() {
-    let bptree = new Bptree(5)
+    let bptree = new Bptree(10)
     let dbname = "test.db"
     try {
         await bptree.drop(dbname)
@@ -270,10 +269,10 @@ async function test8() {
 const funcList = [
     // test0,
     // test1,
-    // test2,
+    test2,
     // test3,
     // test4,
-    test5,
+    // test5,
     // test6,
     // test7,
     // test8

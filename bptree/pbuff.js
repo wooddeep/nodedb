@@ -22,7 +22,7 @@ class PageBuff {
         this.fd = fd
     }
 
-    async getPageNode(index, inuse = true, dirty = false) {
+    async getPageNode(index, dirty = false) {
 
         if (index < 0) return undefined
 
@@ -39,7 +39,6 @@ class PageBuff {
         }
 
         if (target != undefined) {
-            target.inuse = inuse
             target.dirty = dirty
         }
 
@@ -53,22 +52,9 @@ class PageBuff {
         this.map[index] = page
         page.ts = this.id
         this.id++
-        
+
         let size = Object.getOwnPropertyNames(this.map).length
         if (size > this.size) {
-            // //let nouse = Object.keys(this.map).filter(x => x != 0).filter(x => this.map[x].inuse == false)
-            // let nouse = Object.keys(this.map).filter(x => x != 0).filter(x => this.map[x].inuse == false)
-            // //winston.error(`# nouse = ${nouse}`)
-            // if (nouse.length > 0) {
-            //     let page = this.map[nouse[0]]
-            //     //winston.error(`## save index: ${page.index}!`)
-            //     var buff = _page.pageToBuff(page)
-            //     await fileops.writeFile(this.fd, buff, 0, PAGE_SIZE, page.index * PAGE_SIZE)
-            //     delete this.map[nouse[0]]
-            // } else {
-            //     winston.error("@@@@ buff size is insufficent!")
-            //     this.size++
-            // }
 
             let array = Object.keys(this.map).filter(x => x != 0).filter(x => this.map[x].index != index)
                 .filter(x => this.map[x].used <= ORDER_NUM)
@@ -94,6 +80,4 @@ class PageBuff {
 
 }
 
-
-//PageBuff.map = {}; // 静态变量
 module.exports = PageBuff;

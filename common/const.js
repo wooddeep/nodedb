@@ -28,7 +28,7 @@
 //  +-------+-------+
 //
 
-const PAGE_SIZE = 64     // 页大小
+const PAGE_SIZE = 4096     // 页大小
 const START_OFFSET = 0   // 起始偏移量
 const KEY_MAX_LEN = 9   // 键值最大长度
 const VAL_TYPE_LEN = 1   // 值类型长度
