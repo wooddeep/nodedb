@@ -42,7 +42,6 @@ class Page {
         used,
         ocnt,
         cells,
-        inuse = true
     ) {
         this.index = index
         this.type = type
@@ -53,7 +52,6 @@ class Page {
         this.used = used
         this.ocnt = ocnt
         this.cells = cells
-        this.inuse = inuse
     }
 
     // 静态函数
@@ -239,13 +237,6 @@ class Page {
         )
     }
 
-    occupy() {
-        this.inuse = true
-    }
-
-    release() {
-        this.inuse = false
-    }
 }
 
 module.exports = Page;
