@@ -4,7 +4,6 @@
  */
 
 const {
-    START_OFFSET,
     KEY_MAX_LEN,
     VAL_TYPE_LEN,
     VAL_IDX_LEN,
@@ -12,10 +11,6 @@ const {
     ORDER_NUM,
     CELL_LEN,
     CELL_OFFSET,
-    MORE_HALF_NUM,
-    NODE_TYPE_LEAF,
-    NODE_TYPE_STEM,
-    NODE_TYPE_ROOT,
     PAGE_TYPE_OFFSET,
     PAGE_PARENT_OFFSET,
     PAGE_NEXT_OFFSET,
