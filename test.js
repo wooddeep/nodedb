@@ -1,5 +1,6 @@
 const winston = require('./winston/config');
 const Bptree = require("./bptree/bptree.js");
+const Table = require("./table/table.js")
 const tools = require('./common/tools');
 const assert = require('assert');
 
@@ -252,30 +253,29 @@ async function test7() {
     await bptree.close()
 }
 
-
 async function test8() {
-    let bptree = new Bptree(500)
-    let dbname = "test.db"
 
-    await bptree.init(dbname)
+}
 
-    let value = await find(bptree, 29321)
-    winston.error(`value = ${value}`)
-
-
-    await bptree.close()
+async function test9() {
+    let name = "test.data"
+    let table = new Table(name, undefined, 500)
+    await table.init(name)
+    await table.flush()
+    await table.close()
 }
 
 const funcList = [
-    test0,
-    test1,
-    test2,
-    test3,
-    test4,
-    test5,
-    test6,
-    test7,
-    test8
+    // test0,
+    // test1,
+    // test2,
+    // test3,
+    // test4,
+    // test5,
+    // test6,
+    // test7,
+    // test8,
+    test9,
 ]
 
 async function test() {

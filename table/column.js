@@ -2,7 +2,8 @@ class Column {
 
     constructor(
         name,
-        type,
+        type, // 0 ~ int, 1 ~ float, 2 ~ string
+        typeAux, // 字符串长度
         keyType = undefined,
         keyName = undefined
     ) {
@@ -10,6 +11,7 @@ class Column {
         this.type = type
         this.keyType = keyType
         this.keyName = keyName
+        this.typeAux = typeAux
     }
 }
 
