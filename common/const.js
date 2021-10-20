@@ -4,7 +4,7 @@
  */
 
 // 
-//  page node 存储分布
+//  b+树 page node 存储分布
 //  +---------------+
 //  +     TYPE      +            // 叶结点类型字段：4字节
 //  +---------------+
@@ -74,6 +74,60 @@ const VAL_TYPE_STR = 2 // 叶子节点存储内容为字符串
 const VAL_TYPE_FPN = 3 // 叶子节点存储内容为浮点数
 const VAL_TYPE_UNK = 4 // 未知
 
+// 
+//  data page node 数据页头结点存储分布
+//  +------------+-----------+----------+-----------+
+//  |    PREV    |    NEXT   | COL-NUM  |  ROW-SIZE |   // prev/next 空闲链表相关, 列数，行大小, 
+//  +------------+-----------+----+-----------------+
+//  |    NAME    | TYPE-AUX  | KT |    KEY-NAME     |   // NAME：列名称(长64字节); 
+//  +------------+-----------+----+-----------------+
+//  |    NAME    | TYPE-AUX  | KT |    KEY-NAME     |   // TYPE-AUX: 列类型及辅助(4字节);
+//  +------------+-----------+----+-----------------+
+//  |    NAME    | TYPE-AUX  | KT |    KEY-NAME     |   // KT: 键类型(1字节);
+//  +------------+-----------+----+-----------------+
+//  |    NAME    | TYPE-AUX  | KT |    KEY-NAME     |   // KEY-NAME: 键名称(64字节);
+//  +------------+-----------+----+-----------------+
+//  |                  ......                       |
+//  +-----------------------------------------------+
+//    
+
+const COL_NUM_LEN = 4 // 列数 所占字节数
+const ROW_SIZE_LEN = 4 // 每行大小 所占字节数
+const PREV_LEN = 4
+const NEXT_LEN = 4
+const COL_NAME_LEN = 64 // 列名称所占字节最大数
+const COL_TYPE_LEN = 2  // 列类型
+const COL_TYPE_AUX_LEN = 2 // 列类型辅助信息
+const KEY_TYPE_LEN = 1 //  键类型
+const KEY_NAME_LEN = 64 // 键名称所占字节最大数
+
+const PREV_OFFSET = 0
+const NEXT_OFFSET = PREV_OFFSET + PREV_LEN
+const COL_NUM_OFFSET = NEXT_OFFSET + NEXT_LEN
+const ROW_SIZE_OFFSET = COL_NUM_OFFSET + COL_NUM_LEN
+const COL_NAME_OFFSET = ROW_SIZE_OFFSET + ROW_SIZE_LEN
+const COL_TYPE_OFFSET = COL_NAME_OFFSET + COL_NAME_LEN
+const COL_TYPE_AUX_OFFSET = COL_TYPE_OFFSET + COL_TYPE_LEN
+const KEY_TYPE_OFFSET = COL_TYPE_AUX_OFFSET + COL_TYPE_AUX_LEN
+const KEY_NAME_OFFSET = KEY_TYPE_OFFSET + KEY_TYPE_LEN
+
+// 
+//  data page node 数据页数据结点存储分布
+//  +------------+-----------+----------+-----------+
+//  |    PREV    |    NEXT   |    TYPE  |  BIT-MAP  |   // prev/next 空闲链表相关, 列数，行大小, 
+//  +------------+-----------+----------+-----------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                      ......                   |
+//  +-----------------------------------------------+
+//  
+
 var constant = {
     KEY_MAX_LEN: KEY_MAX_LEN,
     VAL_TYPE_LEN: VAL_TYPE_LEN,
@@ -111,6 +165,19 @@ var constant = {
     VAL_TYPE_STR: VAL_TYPE_STR,
     VAL_TYPE_FPN: VAL_TYPE_FPN,
     VAL_TYPE_UNK: VAL_TYPE_UNK,
+
+    // 数据页头结点相关定义
+    COL_NAME_LEN: COL_NAME_LEN,
+    KEY_NAME_LEN: KEY_NAME_LEN,
+    COL_NUM_OFFSET: COL_NUM_OFFSET,
+    ROW_SIZE_OFFSET: ROW_SIZE_OFFSET,
+    PREV_OFFSET: PREV_OFFSET,
+    NEXT_OFFSET: NEXT_OFFSET,
+    COL_NAME_OFFSET: COL_NAME_OFFSET,
+    COL_TYPE_OFFSET: COL_TYPE_OFFSET,
+    COL_TYPE_AUX_OFFSET: COL_TYPE_AUX_OFFSET,
+    KEY_TYPE_OFFSET: KEY_TYPE_OFFSET,
+    KEY_NAME_OFFSET: KEY_NAME_OFFSET,
 }
 
 module.exports = constant;
