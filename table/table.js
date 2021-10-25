@@ -5,15 +5,17 @@
 
 const fileops = require("../common/fileops.js")
 const winston = require('../winston/config')
-const DataPage = require("./page.js")
+const Bptree = require("../bptree/bptree.js");
 const Pidx = require("../common/index.js")
 const Buff = require("../common/buff.js")
+const DataPage = require("./page.js")
 
 const {
     PAGE_SIZE,
     NODE_TYPE_FREE,
     NODE_TYPE_ROOT,
-    START_OFFSET
+    START_OFFSET,
+    DATA_DATA_HEAD_LEN
 } = require("../common/const")
 
 class Table {
@@ -25,11 +27,11 @@ class Table {
         this.buffSize = buffSize
 
         this._page = new DataPage()
-
+        this._index = new Bptree() // 主键索引
         this._pidx = new Pidx()
         this._buff = new Buff(this.buffSize, this._pidx)
     }
-    
+
     async appendFreeNode(id) {
         let free = await this._buff.getPageNode(id)
         let firstFreeIndex = this.rootPage.next
@@ -69,14 +71,6 @@ class Table {
         }
     }
 
-    rowSize(columns) {
-        let size = 0
-        for (var i = 0; i < columns.length; i++) {
-            size += columns[i].size()
-        }
-        return size
-    }
-
     async init() {
         let exist = await fileops.existFile(this.tableName)
         if (!exist) { // 文件不存在则创建
@@ -96,7 +90,8 @@ class Table {
             this.rootPage.columns = this.columns
             this.rootPage.colNum = this.columns.length // 列数
             this.rootPage.rowSize = this.rowSize(this.rootPage.columns)
-            await this._buff.setPageNode(0, this.rootPage)
+            this.rootPage.rowNum =
+                await this._buff.setPageNode(0, this.rootPage)
             return this.fileId
         }
 
@@ -118,6 +113,10 @@ class Table {
         return this.fileId
     }
 
+    async insert(row) {
+
+    }
+
     async flush() {
         let pageNum = this._pidx.get() // 页数
         for (var index = 0; index < pageNum; index++) {
@@ -134,6 +133,23 @@ class Table {
         await fileops.closeFile(this.fileId)
     }
 
+    rowSize(columns) {
+        let size = 0
+        for (var i = 0; i < columns.length; i++) {
+            size += columns[i].size()
+        }
+        return size
+    }
+
+    rowNum(rowSize) {
+        let num = Math.floor(8 * (PAGE_SIZE - 12) / (1 + 8 * rowSize))
+        let bitMapSize = Math.ceil(num / 8)
+        if (DATA_DATA_HEAD_LEN + bitMapSize + rowSize * num > PAGE_SIZE) {
+            bitMapSize = bitMapSize - 1
+        }
+        
+        return // 
+    }
 
     header() {
         for (var i = 0; i < this.columns.length; i++) {

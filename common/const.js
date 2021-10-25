@@ -115,9 +115,9 @@ const COL_DESC_LEN = COL_NAME_LEN + COL_TYPE_LEN + COL_TYPE_AUX_LEN + KEY_TYPE_L
 // 
 //  data page node 数据页数据结点存储分布
 //  +------------+-----------+----------+-----------+
-//  |    PREV    |    NEXT   |    TYPE  |  BIT-MAP  |   // prev/next 空闲链表相关, 列数，行大小, 
+//  |    PREV    |    NEXT   |   TYPE   |  ROW_NUM  |   // prev/next 空闲链表相关, 列数，行大小；
 //  +------------+-----------+----------+-----------+
-//  |                     ROW_DATA                  |   // 一行数据
+//  |                     BIT_MAP                   |   // BIT_MAP：标志着每一行的使用情况：空，占用，删除
 //  +-----------------------------------------------+
 //  |                     ROW_DATA                  |   // 一行数据
 //  +-----------------------------------------------+
@@ -128,6 +128,10 @@ const COL_DESC_LEN = COL_NAME_LEN + COL_TYPE_LEN + COL_TYPE_AUX_LEN + KEY_TYPE_L
 //  |                      ......                   |
 //  +-----------------------------------------------+
 //  
+const DATA_DATA_TYPE_LEN = 2 // 数据节点类型字段长度
+const ROW_NUM_LEN = 2
+const DATA_DATA_HEAD_LEN = PREV_LEN + NEXT_LEN + DATA_DATA_TYPE_LEN + ROW_NUM_LEN
+
 
 var constant = {
     KEY_MAX_LEN: KEY_MAX_LEN,
@@ -180,6 +184,9 @@ var constant = {
     KEY_TYPE_OFFSET: KEY_TYPE_OFFSET,
     KEY_NAME_OFFSET: KEY_NAME_OFFSET,
     COL_DESC_LEN: COL_DESC_LEN,
+
+    // 数据页 数据节点
+    DATA_DATA_HEAD_LEN: DATA_DATA_HEAD_LEN,
 }
 
 module.exports = constant;
