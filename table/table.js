@@ -147,8 +147,7 @@ class Table {
         if (DATA_DATA_HEAD_LEN + bitMapSize + rowSize * num > PAGE_SIZE) {
             bitMapSize = bitMapSize - 1
         }
-        
-        return // 
+        return Math.min(num, 8 * bitMapSize)
     }
 
     header() {
