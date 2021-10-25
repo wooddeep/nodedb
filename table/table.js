@@ -5,9 +5,9 @@
 
 const fileops = require("../common/fileops.js")
 const winston = require('../winston/config')
-const DataPage = require("./dpage.js")
+const DataPage = require("./page.js")
 const Pidx = require("../bptree/pidx.js")
-const Buff = require("../bptree/pbuff.js")
+const Buff = require("../bptree/buff.js")
 
 const {
     PAGE_SIZE,

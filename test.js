@@ -267,16 +267,16 @@ async function test9() {
 }
 
 const funcList = [
-    // test0,
-    // test1,
-    // test2,
-    // test3,
-    // test4,
-    // test5,
-    // test6,
-    // test7,
-    // test8,
-    test9,
+    test0,
+    test1,
+    test2,
+    test3,
+    test4,
+    test5,
+    test6,
+    test7,
+    test8,
+    //test9,
 ]
 
 async function test() {
