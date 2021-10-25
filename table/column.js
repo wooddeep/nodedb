@@ -1,17 +1,25 @@
+const {
+    COL_NAME_LEN,
+    KEY_NAME_LEN,
+} = require("../common/const")
+
 class Column {
 
     constructor(
         name,
         type, // 0 ~ int, 1 ~ float, 2 ~ string
         typeAux, // 字符串长度
-        keyType = undefined, // 0 ~ null, 1 ~ primary key, 2 ~ unique key, 3 ~ key
-        keyName = undefined
+        keyType = 0, // 0 ~ null, 1 ~ primary key, 2 ~ unique key, 3 ~ key
+        keyName = ""
     ) {
-        this.name = name
+        this.name = Buffer.alloc(COL_NAME_LEN)
+        this.name.write(name)
         this.type = type
-        this.keyType = keyType
-        this.keyName = keyName
         this.typeAux = typeAux
+        this.keyType = keyType
+        this.keyName = Buffer.alloc(KEY_NAME_LEN)
+        this.keyName.write(keyName)
+
     }
 
     size() {
