@@ -1,6 +1,7 @@
 const winston = require('./winston/config');
 const Bptree = require("./bptree/bptree.js");
 const Table = require("./table/table.js")
+const Column = require("./table/column")
 const tools = require('./common/tools');
 const assert = require('assert');
 
@@ -229,7 +230,7 @@ async function test5() {
 
 /* 测试value为字符串 */
 async function test6() {
-    let bptree = new Bptree(3, 1024, 9 ,100)
+    let bptree = new Bptree(3, 1024, 9, 100)
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
@@ -257,9 +258,17 @@ async function test8() {
 
 }
 
+
 async function test9() {
     let name = "test.data"
-    let table = new Table(name, undefined, 500)
+    let columns = []
+    col0 = new Column("AID", 0, undefined, 1, "key0")
+    col1 = new Column("name", 2, 32, 0, undefined)
+
+    columns.push(col0)
+    columns.push(col1)
+
+    let table = new Table(name, columns, 500)
     await table.drop(name)
     await table.init(name)
     await table.flush()

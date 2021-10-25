@@ -18,6 +18,18 @@ const {
 
 class Table {
 
+    constructor(tableName, columns, buffSize) {
+        this.PAGE_SIZE = PAGE_SIZE
+        this.columns = columns
+        this.tableName = tableName
+        this.buffSize = buffSize
+
+        this._page = new DataPage()
+
+        this._pidx = new Pidx()
+        this._buff = new Buff(this.buffSize, this._pidx)
+    }
+    
     async appendFreeNode(id) {
         let free = await this._buff.getPageNode(id)
         let firstFreeIndex = this.rootPage.next
@@ -49,24 +61,20 @@ class Table {
         return node
     }
 
-    constructor(tableName, columns, buffSize) {
-        this.PAGE_SIZE = PAGE_SIZE
-        this.columns = columns
-        this.tableName = tableName
-        this.buffSize = buffSize
-
-        this._page = new DataPage()
-
-        this._pidx = new Pidx()
-        this._buff = new Buff(this.buffSize, this._pidx)
-    }
-
     async drop(name) {
         try {
             let ret = await fileops.unlinkFile(name)
         } catch (e) {
             winston.info(e)
         }
+    }
+
+    rowSize(columns) {
+        let size = 0
+        for (var i = 0; i < columns.length; i++) {
+            size += columns[i].size()
+        }
+        return size
     }
 
     async init() {
@@ -85,6 +93,9 @@ class Table {
             this.rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
             this.rootPage.next = 0        // rootPage的prev和next指向自己，用于空闲链表
             this.rootPage.prev = 0
+            this.rootPage.columns = this.columns
+            this.rootPage.colNum = this.columns.length // 列数
+            this.rootPage.rowSize = this.rowSize(this.rootPage.columns)
             await this._buff.setPageNode(0, this.rootPage)
             return this.fileId
         }
@@ -113,7 +124,6 @@ class Table {
             var page = await this._buff.getPageNode(index, true)
             if (page != undefined && page.dirty == true) {
                 let buff = page.pageToBuff()
-                //var buff = this._page.pageToBuff(page)
                 await fileops.writeFile(this.fileId, buff, 0, this.PAGE_SIZE, index * this.PAGE_SIZE)
             }
         }
