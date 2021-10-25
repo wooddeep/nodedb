@@ -260,6 +260,7 @@ async function test8() {
 async function test9() {
     let name = "test.data"
     let table = new Table(name, undefined, 500)
+    await table.drop(name)
     await table.init(name)
     await table.flush()
     await table.close()

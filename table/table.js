@@ -61,6 +61,14 @@ class Table {
         this._buff = new Buff(this.buffSize, this._pidx)
     }
 
+    async drop(name) {
+        try {
+            let ret = await fileops.unlinkFile(name)
+        } catch (e) {
+            winston.info(e)
+        }
+    }
+
     async init() {
         let exist = await fileops.existFile(this.tableName)
         if (!exist) { // 文件不存在则创建
