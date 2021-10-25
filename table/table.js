@@ -6,7 +6,7 @@
 const fileops = require("../common/fileops.js")
 const winston = require('../winston/config')
 const DataPage = require("./page.js")
-const Pidx = require("../bptree/pidx.js")
+const Pidx = require("../common/index.js")
 const Buff = require("../common/buff.js")
 
 const {

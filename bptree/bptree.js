@@ -54,11 +54,11 @@ const {
 } = require("../common/const.js")
 
 const winston = require('../winston/config')
-const fileops = require("../common/fileops.js")
+const fileops = require("../common/fileops")
 const tools = require('../common/tools')
 const Buff = require('../common/buff')
+const Pidx = require('../common/index')
 const Page = require('./page.js')
-const Pidx = require('./pidx.js')
 
 Buffer.prototype.compare = function (to) {
     let left = this.readInt32LE(0)
@@ -90,7 +90,7 @@ class Bptree {
         this.LESS_HALF_NUM = Math.floor(this.ORDER_NUM / 2)  // 少的一半
         this.MORE_HALF_NUM = Math.ceil(this.ORDER_NUM / 2)   // 多的一半
         this._pidx = new Pidx()
-        
+
         this._page = new Page()
         this._page.attach(this)
 
