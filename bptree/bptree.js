@@ -56,7 +56,7 @@ const {
 const winston = require('../winston/config')
 const fileops = require("../common/fileops.js")
 const tools = require('../common/tools')
-const Buff = require('./buff.js')
+const Buff = require('../common/buff')
 const Page = require('./page.js')
 const Pidx = require('./pidx.js')
 
