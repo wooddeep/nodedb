@@ -4,3 +4,4 @@ logs
 test_*
 bak
 *.db
+*.data

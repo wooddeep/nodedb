@@ -10,6 +10,10 @@ class PageBase {
     pageToBuff() {
         //return 
     }
+
+    buffToPage() {
+
+    }
 }
 
 module.exports = PageBase
