@@ -20,7 +20,7 @@
 //  +-----------------------------------------------+
 //  
 
-const PageBase = require("../common/pagebase")
+const PageBase = require("../common/page")
 const Column = require("./column")
 
 const {
