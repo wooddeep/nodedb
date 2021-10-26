@@ -4,6 +4,7 @@ const Table = require("./table/table.js")
 const Column = require("./table/column")
 const tools = require('./common/tools');
 const assert = require('assert');
+const { PAGE_SIZE } = require('./common/const');
 
 function random(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
@@ -255,29 +256,29 @@ async function test7() {
 }
 
 async function test8() {
-    let bptree = new Bptree(3)
+    let bptree = new Bptree(100, PAGE_SIZE, 4, 6)
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
 
-    let buff = Buffer.alloc(4)
-    buff.writeUInt16LE(10, 0)
-    buff.writeUInt16LE(1, 2)
+    let buff = Buffer.alloc(6)
+    buff.writeUInt32LE(10, 0)
+    buff.writeUInt16LE(1, 4)
 
     await writeOne(bptree, 100, buff)
     await bptree.flush()
     let value = await find(bptree, 100)
 
-    let pageIndex = buff.readUInt16LE()
-    let slotIndex = buff.readUInt16LE(2)
+    let pageIndex = value.readUInt32LE()
+    let slotIndex = value.readUInt16LE(4)
 
     winston.error(`## pageIndex = ${pageIndex}, slotIndex= ${slotIndex}`)
-    
+
     await bptree.close()
 }
 
 async function test9() {
-    let name = "test.data"
+    let name = "test"
     let columns = []
     col0 = new Column("AID", 0, undefined, 1, "key0")
     col1 = new Column("name", 2, 32, 0, undefined)
@@ -285,9 +286,9 @@ async function test9() {
     columns.push(col0)
     columns.push(col1)
 
-    let table = new Table(name, columns, 500)
-    await table.drop(name)
-    await table.init(name)
+    let table = new Table(`${name}.data`, columns, 500)
+    await table.drop(`${name}.data`)
+    await table.init(`${name}.data`)
 
     let value = [1, "lihan"]
 
@@ -306,8 +307,8 @@ const funcList = [
     // test5,
     // test6,
     // test7,
-    test8,
-    // test9,
+    // test8,
+    test9,
 ]
 
 async function test() {

@@ -29,7 +29,7 @@ class Table {
         this.buffSize = buffSize
 
         this._page = new DataPage()
-        this._index = new Bptree() // 主键索引
+        this._index = new Bptree(100, PAGE_SIZE, 4, 6) // 主键索引 4: 主键是整形数，6：页索引 + 页内偏移
         this._pidx = new Pidx()
         this._buff = new Buff(this.buffSize, this._pidx)
     }
@@ -119,7 +119,7 @@ class Table {
         if (!exist) { // 文件不存在则创建
             await fileops.createFile(this.tableName)
         }
-
+        await this._index.init(`test.index`) // 创建索引文件 TOOD 
         this.fileId = await fileops.openFile(this.tableName)
         let stat = await fileops.statFile(this.fileId)
         winston.info("file size = " + stat.size)
@@ -170,7 +170,7 @@ class Table {
 
         let rowBuff = Buffer.alloc(this.rootPage.rowSize)
         let offset = 0
-        for (var ci = 0; ci < this.columns.length; i++) {
+        for (var ci = 0; ci < this.columns.length; ci++) {
             let column = this.columns[ci]
             if (column.type == 0) { // 0 ~ int, 1 ~ float, 2 ~ string
                 rowBuff.writeUInt32LE(row[ci], offset)
@@ -193,7 +193,10 @@ class Table {
         }
 
         // 3. 创建索引值
-        await this._index.insert(row[0], ) // TODO 暂时以第一列为主键，创建索引
+        let index = Buffer.alloc(6)
+        index.writeUInt32LE(page.index, 0) // 页索引
+        index.writeUInt16LE(slot, 4) // 页内偏移
+        //await this._index.insert(row[0], index) // TODO 暂时以第一列为主键，创建索引
     }
 
     async flush() {
