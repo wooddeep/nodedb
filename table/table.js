@@ -5,6 +5,7 @@
 
 const fileops = require("../common/fileops.js")
 const winston = require('../winston/config')
+const BitMap = require("../common/bitmap.js")
 const Bptree = require("../bptree/bptree.js");
 const Pidx = require("../common/index.js")
 const Buff = require("../common/buff.js")
@@ -31,6 +32,7 @@ class Table {
         this._index = new Bptree() // 主键索引
         this._pidx = new Pidx()
         this._buff = new Buff(this.buffSize, this._pidx)
+        this._bitmap = new BitMap()
     }
 
     async appendFreeNode(id) {
@@ -61,14 +63,18 @@ class Table {
         let rowNum = this.rootPage.rowNum
 
         // 判断bitmap的空位
-
-        let nextId = node.next
-        this.rootPage.next = nextId
-        let nextNode = await this._buff.getPageNode(nextId)
-        nextNode.prev = node.prev
-        nextNode.dirty = true
-        node.type = type
-        return node
+        let holes = this._bitmap.getHoles(bitmap, rowNum) // 获取node对应的空洞
+        if (holes.length == 0) { // 本来不应出现这个情况, 如果出现这个情况，把该节点删除，并递归处理
+            let nextId = node.next
+            this.rootPage.next = nextId
+            let nextNode = await this._buff.getPageNode(nextId)
+            nextNode.prev = node.prev
+            nextNode.dirty = true
+            node.type = type
+            return node
+        } else {
+            return node
+        }
     }
 
     async drop(name) {
