@@ -5,6 +5,10 @@ class BitMap {
         this.bitmap.fill(0)
     }
 
+    getBuff() {
+        return this.bitmap
+    }
+
     /*
      * @description: 获取bitmap中，第一个空洞位置
      * @bitmap: bitmap的字节数组

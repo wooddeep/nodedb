@@ -135,7 +135,8 @@ const COL_DESC_LEN = COL_NAME_LEN + COL_TYPE_LEN + COL_TYPE_AUX_LEN + KEY_TYPE_L
 //  
 const DATA_TYPE_LEN = 1 // 数据节点类型字段长度
 const DATA_HEAD_LEN = PREV_LEN + NEXT_LEN + DATA_TYPE_LEN
-
+const DATA_TYPE_OFFSET = NEXT_OFFSET + NEXT_LEN
+const BIT_MAP_OFFSET = DATA_TYPE_OFFSET + DATA_TYPE_LEN
 
 var constant = {
     KEY_MAX_LEN: KEY_MAX_LEN,
@@ -194,6 +195,8 @@ var constant = {
 
     // 数据页 数据节点
     DATA_HEAD_LEN: DATA_HEAD_LEN,
+    DATA_TYPE_OFFSET: DATA_TYPE_OFFSET,
+    BIT_MAP_OFFSET: BIT_MAP_OFFSET
 }
 
 module.exports = constant;

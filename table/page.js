@@ -58,6 +58,8 @@ const {
     COL_NAME_LEN,
     KEY_NAME_LEN,
     ROW_NUM_OFFSET,
+    DATA_TYPE_OFFSET,
+    BIT_MAP_OFFSET,
 } = require("../common/const")
 
 class DataPage extends PageBase {
@@ -74,10 +76,11 @@ class DataPage extends PageBase {
 
     pageToBuff() {
         let buff = Buffer.alloc(this.size)
+        buff.writeInt32LE(this.prev, PREV_OFFSET)  // 列数目
+        buff.writeInt32LE(this.next, NEXT_OFFSET) // 一行大小
 
         if (this.type == NODE_TYPE_ROOT) {  // 数据文件头结点
-            buff.writeInt32LE(this.prev, PREV_OFFSET)  // 列数目
-            buff.writeInt32LE(this.next, NEXT_OFFSET) // 一行大小
+
             buff.writeInt16LE(this.colNum, COL_NUM_OFFSET)    // 空闲链表指针
             buff.writeInt16LE(this.rowSize, ROW_SIZE_OFFSET)    // 空闲链表指针
             buff.writeInt16LE(this.rowNum, ROW_NUM_OFFSET)
@@ -96,7 +99,8 @@ class DataPage extends PageBase {
             }
 
         } else {
-
+            buff.writeUInt8(this.type, DATA_TYPE_OFFSET)
+            this.bitmap.getBuff().copy(buff, BIT_MAP_OFFSET)
         }
 
         return buff

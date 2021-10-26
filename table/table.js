@@ -44,7 +44,7 @@ class Table {
         node.next = firstFreeIndex
         node.prev = firstFreePage.prev
         firstFreePage.prev = id
-        node.type = NODE_TYPE_FREE
+        //node.type = NODE_TYPE_FREE
         node.dirty = true
     }
 
@@ -56,7 +56,7 @@ class Table {
         node.next = firstFreeIndex
         node.prev = firstFreePage.prev
         firstFreePage.prev = id
-        node.type = NODE_TYPE_FREE
+        //node.type = NODE_TYPE_FREE
         node.dirty = true
     }
 
@@ -80,6 +80,7 @@ class Table {
             
             if (type == NODE_TYPE_DATA) {
                 node.rowMap = {}
+                node.type = type
                 await this.appendFreeNode(node) // 初始的节点放入空闲链表
             }
 
