@@ -255,9 +255,21 @@ async function test7() {
 }
 
 async function test8() {
+    let bptree = new Bptree(3)
+    let dbname = "test.db"
+    await bptree.drop(dbname)
+    await bptree.init(dbname)
 
+    let buff = Buffer.alloc(4)
+    buff.writeUInt16LE(10, 0)
+    buff.writeUInt16LE(1, 2)
+
+    await writeOne(bptree, 100, buff)
+    await bptree.flush()
+    let value = await find(bptree, 100)
+    winston.error(`## map[100] = ${value}`)
+    await bptree.close()
 }
-
 
 async function test9() {
     let name = "test.data"
@@ -271,6 +283,11 @@ async function test9() {
     let table = new Table(name, columns, 500)
     await table.drop(name)
     await table.init(name)
+
+    let value = [1, "lihan"]
+
+    await table.insert(value)
+
     await table.flush()
     await table.close()
 }
@@ -284,8 +301,8 @@ const funcList = [
     // test5,
     // test6,
     // test7,
-    // test8,
-    test9,
+    test8,
+    // test9,
 ]
 
 async function test() {

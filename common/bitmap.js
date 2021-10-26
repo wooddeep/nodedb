@@ -1,7 +1,8 @@
 class BitMap {
 
-    constructor() {
-
+    constructor(bitMapSize) {
+        this.bitmap = Buffer.alloc(bitMapSize)
+        this.bitmap.fill(0)
     }
 
     /*
@@ -9,11 +10,11 @@ class BitMap {
      * @bitmap: bitmap的字节数组
      * @bitsNum: bit数量
      */
-    getFirstHole(bitmap, bitsNum) {
+    getFirstHole(bitsNum) {
         let bytes = Math.floor(bitsNum / 8) // 整的
         let remain = Math.floor(bitsNum - 8 * bytes) // 余下的
         for (var byteIndex = 0; byteIndex < bytes; byteIndex++) {
-            let byte = bitmap[byteIndex]
+            let byte = this.bitmap[byteIndex]
             for (var bitIndex = 7; bitIndex >= 0; bitIndex--) {
                 let ret = byte & (0x01 << bitIndex)
                 if (ret == 0) {
@@ -26,7 +27,7 @@ class BitMap {
             return undefined
         }
 
-        let byte = bitmap[bytes] // 最后一个字节，并未填满
+        let byte = this.bitmap[bytes] // 最后一个字节，并未填满
         for (var bitIndex = 7; bitIndex >= 8 - remain; bitIndex--) {
             let ret = byte & (0x01 << bitIndex)
             if (ret == 0) {
@@ -38,12 +39,12 @@ class BitMap {
     }
 
 
-    getHoles(bitmap, bitsNum) {
+    getHoles(bitsNum) {
         let holes = []
         let bytes = Math.floor(bitsNum / 8) // 整的
         let remain = Math.floor(bitsNum - 8 * bytes) // 余下的
         for (var byteIndex = 0; byteIndex < bytes; byteIndex++) {
-            let byte = bitmap[byteIndex]
+            let byte = this.bitmap[byteIndex]
             for (var bitIndex = 7; bitIndex >= 0; bitIndex--) {
                 let ret = byte & (0x01 << bitIndex)
                 if (ret == 0) {
@@ -52,7 +53,7 @@ class BitMap {
             }
         }
 
-        let byte = bitmap[bytes] // 最后一个字节，并未填满
+        let byte = this.bitmap[bytes] // 最后一个字节，并未填满
         for (var bitIndex = 7; bitIndex >= 8 - remain; bitIndex--) {
             let ret = byte & (0x01 << bitIndex)
             if (ret == 0) {
@@ -67,14 +68,14 @@ class BitMap {
     /*
      * @description: 填充空洞位置
      */
-    fillHole(bitmap, bitPos) {
+    fillHole(bitPos) {
         let bytes = Math.floor(bitPos / 8) // 整的
         let remain = Math.floor(bitPos - 8 * bytes) // 余下的
 
-        let byte = bitmap[bytes]
+        let byte = this.bitmap[bytes]
         byte = byte | (0x01 << (7 - remain))
 
-        bitmap[bytes] = byte
+        this.bitmap[bytes] = byte
     }
 
 }

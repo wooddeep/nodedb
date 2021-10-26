@@ -50,6 +50,7 @@ const {
     VAL_TYPE_NUM,
     VAL_TYPE_STR,
     VAL_TYPE_FPN,
+    VAL_TYPE_OBJ,
     VAL_TYPE_UNK,
 } = require("../common/const.js")
 
@@ -321,6 +322,10 @@ class Bptree {
 
     valueType(value) {
 
+        if (typeof (value) == 'object') {
+            return VAL_TYPE_OBJ
+        }
+
         if (typeof (value) == 'number') {
             if (Number.isInteger(value)) {
                 return VAL_TYPE_NUM
@@ -508,6 +513,9 @@ class Bptree {
                 }
                 if (targetPage.cells[i].type == VAL_TYPE_STR) {
                     return targetPage.cells[i].index.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+                }
+                if (targetPage.cells[i].type == VAL_TYPE_OBJ) {
+                    return targetPage.cells[i].index
                 }
             }
         }

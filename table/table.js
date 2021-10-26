@@ -22,7 +22,7 @@ const {
 
 class Table {
 
-    constructor(tableName, columns, buffSize) {
+    constructor(tableName, columns = undefined, buffSize) {
         this.PAGE_SIZE = PAGE_SIZE
         this.columns = columns
         this.tableName = tableName
@@ -32,19 +32,38 @@ class Table {
         this._index = new Bptree() // 主键索引
         this._pidx = new Pidx()
         this._buff = new Buff(this.buffSize, this._pidx)
-        this._bitmap = new BitMap()
     }
 
-    async appendFreeNode(id) {
-        let free = await this._buff.getPageNode(id)
+    async appendFreeNodeById(id) {
+        let node = await this._buff.getPageNode(id)
         let firstFreeIndex = this.rootPage.next
-        let firstFreePage = await this._buff.getPageNode(firstFreeIndex) // TODO 如果找不到, 需要重新加载
+        let firstFreePage = await this._buff.getPageNode(firstFreeIndex)
         this.rootPage.next = id
-        free.next = firstFreeIndex
-        free.prev = firstFreePage.prev
+        node.next = firstFreeIndex
+        node.prev = firstFreePage.prev
         firstFreePage.prev = id
-        free.type = NODE_TYPE_FREE
-        free.dirty = true
+        node.type = NODE_TYPE_FREE
+        node.dirty = true
+    }
+
+    async appendFreeNode(node) {
+        let id = node.index
+        let firstFreeIndex = this.rootPage.next
+        let firstFreePage = await this._buff.getPageNode(firstFreeIndex)
+        this.rootPage.next = id
+        node.next = firstFreeIndex
+        node.prev = firstFreePage.prev
+        firstFreePage.prev = id
+        node.type = NODE_TYPE_FREE
+        node.dirty = true
+    }
+
+    async deleteFreeNode(node) {
+        let nextId = node.next
+        this.rootPage.next = nextId
+        let nextNode = await this._buff.getPageNode(nextId)
+        nextNode.prev = node.prev
+        nextNode.dirty = true
     }
 
     async fetchPageNode(type = NODE_TYPE_DATA) {
@@ -53,6 +72,15 @@ class Table {
             let index = this._pidx.newPageIndex()
             let node = this._page.newPage(type)
             node.index = index
+            let bitMapSize = Math.ceil(this.rowNum / 8) // 设置bitmap
+            let bitmap = new BitMap(bitMapSize)
+            node.bitmap = bitmap
+            
+            if (type == NODE_TYPE_DATA) {
+                node.rowMap = {}
+                await this.appendFreeNode(node) // 初始的节点放入空闲链表
+            }
+
             return node
         }
 
@@ -63,18 +91,19 @@ class Table {
         let rowNum = this.rootPage.rowNum
 
         // 判断bitmap的空位
-        let holes = this._bitmap.getHoles(bitmap, rowNum) // 获取node对应的空洞
-        if (holes.length == 0) { // 本来不应出现这个情况, 如果出现这个情况，把该节点删除，并递归处理
-            let nextId = node.next
-            this.rootPage.next = nextId
-            let nextNode = await this._buff.getPageNode(nextId)
-            nextNode.prev = node.prev
-            nextNode.dirty = true
-            node.type = type
-            return node
-        } else {
+        let holes = node.bitmap.getHoles(rowNum) // 获取node对应的空洞
+        if (holes.length > 0) {
             return node
         }
+
+        // 本来不应出现这个情况, 如果出现这个情况，把该节点删除，并递归处理
+        let nextId = node.next
+        this.rootPage.next = nextId
+        let nextNode = await this._buff.getPageNode(nextId)
+        nextNode.prev = node.prev
+        nextNode.dirty = true
+        node.type = type
+        return fetchPageNode(type)
     }
 
     async drop(name) {
@@ -97,14 +126,16 @@ class Table {
         this._pidx.set(Math.floor(stat.size / PAGE_SIZE)) // 数据文件所占的总页数
 
         if (stat.size < PAGE_SIZE) { // 空文件
-            this.rootPage = await this.fetchPageNode(NODE_TYPE_ROOT)    // 新生成一个根页面
+            this.rowSize = this.calRowSize(this.columns) // 行大小
+            this.rowNum = this.calRowNum(this.rowSize)
+            this.rootPage = await this.fetchPageNode(NODE_TYPE_ROOT, this.rowNum)    // 新生成一个根页面
             this.rootPage.index = 0       // index只存在内存中，未持久化，在初始化时添加
             this.rootPage.next = 0        // rootPage的prev和next指向自己，用于空闲链表
             this.rootPage.prev = 0
             this.rootPage.columns = this.columns
             this.rootPage.colNum = this.columns.length // 列数
-            this.rootPage.rowSize = this.rowSize(this.rootPage.columns) // 行大小
-            this.rootPage.rowNum = this.rowNum(this.rootPage.rowSize)   // 行数
+            this.rootPage.rowSize = this.rowSize
+            this.rootPage.rowNum = this.rowNum   // 行数
             await this._buff.setPageNode(0, this.rootPage)
             return this.fileId
         }
@@ -129,6 +160,40 @@ class Table {
 
     async insert(row) {
         // 1. 先查看空闲链表上，是否有页
+        let page = await this.fetchPageNode(NODE_TYPE_DATA)
+
+        let holes = page.bitmap.getHoles(this.rowNum)
+        let hole = holes[0]
+        let byteIndex = hole[0]
+        let bitIndex = hole[1]
+        let slot = byteIndex * 8 + bitIndex
+
+        let rowBuff = Buffer.alloc(this.rootPage.rowSize)
+        let offset = 0
+        for (var ci = 0; ci < this.columns.length; i++) {
+            let column = this.columns[ci]
+            if (column.type == 0) { // 0 ~ int, 1 ~ float, 2 ~ string
+                rowBuff.writeUInt32LE(row[ci], offset)
+                offset += 4
+            } else if (column.type == 1) {
+                rowBuff.writeFloatLE(row[ci], offset)
+                offset += 4
+            } else if (column.type == 2) {
+                rowBuff.write(row[ci], offset)
+                offset += column.typeAux
+            }
+        }
+        
+        page.rowMap[slot] = rowBuff
+        page.bitmap.fillHole(slot)
+
+         // 2. 已无空位, 则需要从空闲链表里面摘除
+        if (holes.length == 1) { 
+            await this.deleteFreeNode(page)
+        }
+
+        // 3. 创建索引值
+        await this._index.insert(row[0], ) // TODO 暂时以第一列为主键，创建索引
     }
 
     async flush() {
@@ -150,7 +215,7 @@ class Table {
     /*
      * 根据数据表列的定义，计算每行数据的大小
      */
-    rowSize(columns) {
+    calRowSize(columns) {
         let size = 0
         for (var i = 0; i < columns.length; i++) {
             size += columns[i].size()
@@ -161,7 +226,7 @@ class Table {
     /*
      * 根据数据表每行数据的大小，计算数据页中最大的数据行数
      */
-    rowNum(rowSize) {
+    calRowNum(rowSize) {
         let num = Math.floor(8 * (PAGE_SIZE - DATA_HEAD_LEN) / (1 + 8 * rowSize))
         let bitMapSize = Math.ceil(num / 8)
         if (DATA_HEAD_LEN + bitMapSize + rowSize * num > PAGE_SIZE) {

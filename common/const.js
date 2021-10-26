@@ -73,7 +73,8 @@ const VAL_TYPE_IDX = 0 // 非叶子节点存储子节点索引
 const VAL_TYPE_NUM = 1 // 叶子节点存储内容为数字
 const VAL_TYPE_STR = 2 // 叶子节点存储内容为字符串
 const VAL_TYPE_FPN = 3 // 叶子节点存储内容为浮点数
-const VAL_TYPE_UNK = 4 // 未知
+const VAL_TYPE_OBJ = 4 // 对象
+const VAL_TYPE_UNK = 5 // 未知
 
 // 
 //  data page node 数据页头结点存储分布
@@ -173,6 +174,7 @@ var constant = {
     VAL_TYPE_NUM: VAL_TYPE_NUM,
     VAL_TYPE_STR: VAL_TYPE_STR,
     VAL_TYPE_FPN: VAL_TYPE_FPN,
+    VAL_TYPE_OBJ: VAL_TYPE_OBJ,
     VAL_TYPE_UNK: VAL_TYPE_UNK,
 
     // 数据页头结点相关定义
