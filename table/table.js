@@ -5,6 +5,7 @@
 
 const fileops = require("../common/fileops.js")
 const winston = require('../winston/config')
+const tools = require('../common/tools');
 const BitMap = require("../common/bitmap.js")
 const Bptree = require("../bptree/bptree.js");
 const Pidx = require("../common/index.js")
@@ -25,7 +26,8 @@ class Table {
     constructor(tableName, columns = undefined, buffSize) {
         this.PAGE_SIZE = PAGE_SIZE
         this.columns = columns
-        this.tableName = tableName
+        this.namePrefix = tableName
+        this.tableName = `${tableName}.data`
         this.buffSize = buffSize
 
         this._page = new DataPage()
@@ -106,9 +108,10 @@ class Table {
         return fetchPageNode(type)
     }
 
-    async drop(name) {
+    async drop() {
         try {
-            let ret = await fileops.unlinkFile(name)
+            let ret = await fileops.unlinkFile(this.tableName)
+            await this._index.drop(`${this.namePrefix}.index`)
         } catch (e) {
             winston.info(e)
         }
@@ -119,7 +122,7 @@ class Table {
         if (!exist) { // 文件不存在则创建
             await fileops.createFile(this.tableName)
         }
-        await this._index.init(`test.index`) // 创建索引文件 TOOD 
+        await this._index.init(`${this.namePrefix}.index`) // 创建索引文件 TOOD 
         this.fileId = await fileops.openFile(this.tableName)
         let stat = await fileops.statFile(this.fileId)
         winston.info("file size = " + stat.size)
@@ -192,11 +195,14 @@ class Table {
             await this.deleteFreeNode(page)
         }
 
+        this._buff.setPageNode(page.index, page)
+
         // 3. 创建索引值
         let index = Buffer.alloc(6)
         index.writeUInt32LE(page.index, 0) // 页索引
         index.writeUInt16LE(slot, 4) // 页内偏移
-        //await this._index.insert(row[0], index) // TODO 暂时以第一列为主键，创建索引
+        let kbuf = tools.buffer(row[0])
+        await this._index.insert(kbuf, index) // TODO 暂时以第一列为主键，创建索引
     }
 
     async flush() {
@@ -209,6 +215,7 @@ class Table {
             }
         }
         await fileops.syncFile(this.fileId)
+        await this._index.flush()
     }
 
     async close() {

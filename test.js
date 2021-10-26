@@ -201,7 +201,7 @@ async function test5() {
     }
     winston.info(array)
 
-    let dbname = "test5.db"
+    let dbname = "test.db"
     try {
         await bptree.drop(dbname)
     } catch (e) {
@@ -286,9 +286,9 @@ async function test9() {
     columns.push(col0)
     columns.push(col1)
 
-    let table = new Table(`${name}.data`, columns, 500)
-    await table.drop(`${name}.data`)
-    await table.init(`${name}.data`)
+    let table = new Table(name, columns, 500)
+    await table.drop()
+    await table.init()
 
     let value = [1, "lihan"]
 
