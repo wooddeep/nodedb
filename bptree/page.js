@@ -70,7 +70,7 @@ class Page {
                 buff.write(value)
             }
             if (type == VAL_TYPE_OBJ) {
-                value.copy(buff, 0, VAL_IDX_LEN)
+                value.copy(buff, 0, 0, VAL_IDX_LEN)
             }
             return buff
         }

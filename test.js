@@ -267,7 +267,12 @@ async function test8() {
     await writeOne(bptree, 100, buff)
     await bptree.flush()
     let value = await find(bptree, 100)
-    winston.error(`## map[100] = ${value}`)
+
+    let pageIndex = buff.readUInt16LE()
+    let slotIndex = buff.readUInt16LE(2)
+
+    winston.error(`## pageIndex = ${pageIndex}, slotIndex= ${slotIndex}`)
+    
     await bptree.close()
 }
 

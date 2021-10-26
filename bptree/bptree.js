@@ -491,9 +491,7 @@ class Bptree {
     }
 
     async insert(key, value) {
-        if (value == 95) {
-            console.log("")
-        }
+
         let targetPage = await this.locateLeaf(key, this.rootPage, LOC_FOR_INSERT) // 目标叶子节点
         await this.innerInsert(targetPage, key, value)
         if (this.needUpdateMax(key)) {
