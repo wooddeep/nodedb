@@ -14,8 +14,9 @@ const {
     PAGE_SIZE,
     NODE_TYPE_FREE,
     NODE_TYPE_ROOT,
+    NODE_TYPE_DATA,
     START_OFFSET,
-    DATA_HEAD_LEN
+    DATA_HEAD_LEN,
 } = require("../common/const")
 
 class Table {
@@ -44,7 +45,8 @@ class Table {
         free.dirty = true
     }
 
-    async fetchPageNode(type) {
+    async fetchPageNode(type = NODE_TYPE_DATA) {
+        // 空闲链表上无节点
         if (this.rootPage == undefined || this.rootPage.next == this.rootPage.prev) {
             let index = this._pidx.newPageIndex()
             let node = this._page.newPage(type)
@@ -52,8 +54,14 @@ class Table {
             return node
         }
 
+        // 空闲链表上有节点, 查看节点的bitmap, 如果bitmap还有空闲位, 则不把节点从空闲链表摘除
         let id = this.rootPage.next
         let node = await this._buff.getPageNode(id)
+        let bitmap = node.bitmap
+        let rowNum = this.rootPage.rowNum
+
+        // 判断bitmap的空位
+
         let nextId = node.next
         this.rootPage.next = nextId
         let nextNode = await this._buff.getPageNode(nextId)
@@ -114,7 +122,7 @@ class Table {
     }
 
     async insert(row) {
-
+        // 1. 先查看空闲链表上，是否有页
     }
 
     async flush() {

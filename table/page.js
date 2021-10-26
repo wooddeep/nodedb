@@ -43,6 +43,7 @@ const Column = require("./column")
 const {
     PAGE_SIZE,
     NODE_TYPE_ROOT,
+    NODE_TYPE_DATA,
     VAL_TYPE_STR,
     COL_NUM_OFFSET,
     ROW_SIZE_OFFSET,
@@ -67,7 +68,7 @@ class DataPage extends PageBase {
         this.size = size // page size
     }
 
-    newPage(type, size = PAGE_SIZE) {
+    newPage(type = NODE_TYPE_DATA, size = PAGE_SIZE) {
         return new DataPage(type, size)
     }
 

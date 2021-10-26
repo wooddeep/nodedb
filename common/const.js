@@ -66,6 +66,7 @@ const MORE_HALF_NUM = Math.ceil(ORDER_NUM / 2)   // 多的一半
 const NODE_TYPE_LEAF = 0 // 叶结点
 const NODE_TYPE_STEM = 1 // 茎节点
 const NODE_TYPE_ROOT = 2 // 根节点
+const NODE_TYPE_DATA = 3 // 数据节点
 const NODE_TYPE_FREE = -1 // 空闲叶结点
 
 const VAL_TYPE_IDX = 0 // 非叶子节点存储子节点索引
@@ -154,6 +155,7 @@ var constant = {
     NODE_TYPE_STEM: NODE_TYPE_STEM,
     NODE_TYPE_ROOT: NODE_TYPE_ROOT,
     NODE_TYPE_FREE: NODE_TYPE_FREE,
+    NODE_TYPE_DATA: NODE_TYPE_DATA,
     PAGE_TYPE_OFFSET: PAGE_TYPE_OFFSET,
     PAGE_PARENT_OFFSET: PAGE_PARENT_OFFSET,
     PAGE_NEXT_OFFSET: PAGE_NEXT_OFFSET,
