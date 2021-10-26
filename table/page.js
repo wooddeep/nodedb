@@ -5,9 +5,9 @@
 
 // 
 //  data page node 数据页头结点存储分布
-//  +------------+-----------+----------+-----------+
-//  |    PREV    |    NEXT   | COL-NUM  |  ROW-SIZE |   // prev/next 空闲链表相关, 列数，行大小, 
-//  +------------+-----------+----+-----------------+
+//  +--------+-------+---------+----------+---------+
+//  |  PREV  |  NEXT | COL_NUM | ROW_SIZE | ROW_NUM |   // prev/next 空闲链表相关, 列数，行大小, 数据页每页行数
+//  +--------+-------+---------+----------+---------+
 //  |    NAME    | TYPE-AUX  | KT |    KEY-NAME     |   // NAME：列名称(长64字节); 
 //  +------------+-----------+----+-----------------+
 //  |    NAME    | TYPE-AUX  | KT |    KEY-NAME     |   // TYPE-AUX: 列类型及辅助(4字节);
@@ -17,6 +17,23 @@
 //  |    NAME    | TYPE-AUX  | KT |    KEY-NAME     |   // KEY-NAME: 键名称(64字节);
 //  +------------+-----------+----+-----------------+
 //  |                  ......                       |
+//  +-----------------------------------------------+
+//  
+
+// 
+//  data page node 数据页数据结点存储分布
+//  +--------+--------+------+----------------------+
+//  |  PREV  |  NEXT  | TYPE |       BIT_MAP        |   // BIT_MAP：标志着每一行的使用情况：空，占用，删除
+//  +--------+--------+------+----------------------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                      ......                   |
 //  +-----------------------------------------------+
 //  
 
@@ -39,6 +56,7 @@ const {
     KEY_NAME_OFFSET,
     COL_NAME_LEN,
     KEY_NAME_LEN,
+    ROW_NUM_OFFSET,
 } = require("../common/const")
 
 class DataPage extends PageBase {
@@ -59,8 +77,9 @@ class DataPage extends PageBase {
         if (this.type == NODE_TYPE_ROOT) {  // 数据文件头结点
             buff.writeInt32LE(this.prev, PREV_OFFSET)  // 列数目
             buff.writeInt32LE(this.next, NEXT_OFFSET) // 一行大小
-            buff.writeInt32LE(this.colNum, COL_NUM_OFFSET)    // 空闲链表指针
-            buff.writeInt32LE(this.rowSize, ROW_SIZE_OFFSET)    // 空闲链表指针
+            buff.writeInt16LE(this.colNum, COL_NUM_OFFSET)    // 空闲链表指针
+            buff.writeInt16LE(this.rowSize, ROW_SIZE_OFFSET)    // 空闲链表指针
+            buff.writeInt16LE(this.rowNum, ROW_NUM_OFFSET)
 
             for (var i = 0; i < this.colNum; i++) {
                 this.columns[i].name.copy(buff, COL_NAME_OFFSET + COL_DESC_LEN * i, 0, COL_NAME_LEN) // 列名称, 规定 < 64
@@ -88,8 +107,9 @@ class DataPage extends PageBase {
         if (this.type == NODE_TYPE_ROOT) {  // 数据文件头结点
             page.prev = buff.readInt32LE(PREV_OFFSET)
             page.next = buff.readInt32LE(NEXT_OFFSET)
-            page.colNum = buff.readInt32LE(COL_NUM_OFFSET)
-            page.rowSize = buff.readInt32LE(ROW_SIZE_OFFSET)
+            page.colNum = buff.readInt16LE(COL_NUM_OFFSET)
+            page.rowSize = buff.readInt16LE(ROW_SIZE_OFFSET)
+            page.rowNum = buff.readInt16LE(ROW_NUM_OFFSET)
 
             let columns = []
             for (var i = 0; i < page.colNum; i++) {

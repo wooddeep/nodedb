@@ -15,7 +15,7 @@ const {
     NODE_TYPE_FREE,
     NODE_TYPE_ROOT,
     START_OFFSET,
-    DATA_DATA_HEAD_LEN
+    DATA_HEAD_LEN
 } = require("../common/const")
 
 class Table {
@@ -89,9 +89,9 @@ class Table {
             this.rootPage.prev = 0
             this.rootPage.columns = this.columns
             this.rootPage.colNum = this.columns.length // 列数
-            this.rootPage.rowSize = this.rowSize(this.rootPage.columns)
-            this.rootPage.rowNum =
-                await this._buff.setPageNode(0, this.rootPage)
+            this.rootPage.rowSize = this.rowSize(this.rootPage.columns) // 行大小
+            this.rootPage.rowNum = this.rowNum(this.rootPage.rowSize)   // 行数
+            await this._buff.setPageNode(0, this.rootPage)
             return this.fileId
         }
 
@@ -133,6 +133,9 @@ class Table {
         await fileops.closeFile(this.fileId)
     }
 
+    /*
+     * 根据数据表列的定义，计算每行数据的大小
+     */
     rowSize(columns) {
         let size = 0
         for (var i = 0; i < columns.length; i++) {
@@ -141,10 +144,13 @@ class Table {
         return size
     }
 
+    /*
+     * 根据数据表每行数据的大小，计算数据页中最大的数据行数
+     */
     rowNum(rowSize) {
-        let num = Math.floor(8 * (PAGE_SIZE - 12) / (1 + 8 * rowSize))
+        let num = Math.floor(8 * (PAGE_SIZE - DATA_HEAD_LEN) / (1 + 8 * rowSize))
         let bitMapSize = Math.ceil(num / 8)
-        if (DATA_DATA_HEAD_LEN + bitMapSize + rowSize * num > PAGE_SIZE) {
+        if (DATA_HEAD_LEN + bitMapSize + rowSize * num > PAGE_SIZE) {
             bitMapSize = bitMapSize - 1
         }
         return Math.min(num, 8 * bitMapSize)
