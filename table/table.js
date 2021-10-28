@@ -146,14 +146,14 @@ class Table {
 
         let buff = Buffer.alloc(PAGE_SIZE)
         await fileops.readFile(this.fileId, buff, START_OFFSET, this.PAGE_SIZE, 0) // 文件第一页，始终放置root页
-        this.rootPage = await this._page.buffToPage(buff)
+        this.rootPage = await this._page.buffToPage(buff, this.bitMapSize, this.rowSize, this.rowNum)
         this.rootPage.index = 0
         await this._buff.setPageNode(0, this.rootPage)
 
         let minSize = this.buffSize * this.PAGE_SIZE > stat.size ? stat.size : this.buffSize * this.PAGE_SIZE
         for (var index = this.PAGE_SIZE; index < minSize; index += this.PAGE_SIZE) {
             await fileops.readFile(this.fileId, buff, START_OFFSET, this.PAGE_SIZE, index) // 非root页
-            let pageNode = this._page.buffToPage(buff)
+            let pageNode = this._page.buffToPage(buff, this.bitMapSize, this.rowSize, this.rowNum)
             let pageIndex = Math.floor(index / this.PAGE_SIZE)
             pageNode.index = pageIndex
             await this._buff.setPageNode(pageIndex, pageNode)
@@ -205,6 +205,22 @@ class Table {
         index.writeUInt16LE(slot, 4) // 页内偏移
         let kbuf = tools.buffer(row[0])
         await this._index.insert(kbuf, index) // TODO 暂时以第一列为主键，创建索引
+    }
+
+
+    async selectById(key) {
+        let kbuf = tools.buffer(key)
+        let value = await this._index.select(kbuf)
+
+        let pageIndex = value.readUInt32LE()
+        let slotIndex = value.readUInt16LE(4)
+
+        winston.info(`## pageIndex = ${pageIndex}, slotIndex= ${slotIndex}`)
+
+        let page = await this._buff.getPageNode(pageIndex)
+        let row = page.getRow(slotIndex)
+
+        return row
     }
 
     async flush() {

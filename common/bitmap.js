@@ -1,8 +1,12 @@
 class BitMap {
 
-    constructor(bitMapSize) {
+    constructor(bitMapSize, buff = undefined) {
         this.bitmap = Buffer.alloc(bitMapSize)
-        this.bitmap.fill(0)
+        if (buff == undefined) {
+            this.bitmap.fill(0)
+        } else {
+            buff.copy(this.bitmap, 0)
+        }
     }
 
     getBuff() {

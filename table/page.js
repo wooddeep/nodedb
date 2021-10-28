@@ -38,6 +38,7 @@
 //  
 
 const PageBase = require("../common/page")
+const Bitmap = require("../common/bitmap")
 const Column = require("./column")
 
 const {
@@ -81,7 +82,7 @@ class DataPage extends PageBase {
 
         if (this.type == NODE_TYPE_ROOT) {  // 数据文件头结点
 
-            buff.writeInt16LE(this.colNum, COL_NUM_OFFSET)    
+            buff.writeInt16LE(this.colNum, COL_NUM_OFFSET)
             buff.writeInt16LE(this.rowSize, ROW_SIZE_OFFSET)
             buff.writeInt16LE(this.rowNum, ROW_NUM_OFFSET)
 
@@ -109,12 +110,12 @@ class DataPage extends PageBase {
         return buff
     }
 
-    buffToPage(buff) {
+    buffToPage(buff, bitMapSize, rowSize, rowNum) {
         let page = new DataPage()
+        page.prev = buff.readInt32LE(PREV_OFFSET)
+        page.next = buff.readInt32LE(NEXT_OFFSET)
 
         if (this.type == NODE_TYPE_ROOT) {  // 数据文件头结点
-            page.prev = buff.readInt32LE(PREV_OFFSET)
-            page.next = buff.readInt32LE(NEXT_OFFSET)
             page.colNum = buff.readInt16LE(COL_NUM_OFFSET)
             page.rowSize = buff.readInt16LE(ROW_SIZE_OFFSET)
             page.rowNum = buff.readInt16LE(ROW_NUM_OFFSET)
@@ -147,9 +148,26 @@ class DataPage extends PageBase {
             page.columns = columns
         } else {
 
+            page.type = buff.readInt8(DATA_TYPE_OFFSET)
+
+            // 拷貝bitmap
+            let bitMapBuff = Buffer.alloc(bitMapSize)
+            buff.copy(bitMapBuff, 0, BIT_MAP_OFFSET, BIT_MAP_OFFSET + bitMapSize)
+            let bitmap = new Bitmap(bitMapSize, bitMapBuff)
+            page.bitmap = bitmap
+
+            for (var index = 0; index < rowNum; index++) {
+                let row = Buffer.alloc(rowSize)
+                buff.copy(row, 0, BIT_MAP_OFFSET + this.bitMapSize + index * this.rowSize, BIT_MAP_OFFSET + this.bitMapSize + (index + 1) * this.rowSize)
+                this.rowMap[index] = row
+            }
         }
 
         return page
+    }
+
+    getRow(sidx) {
+        return this.rowMap[sidx]
     }
 }
 

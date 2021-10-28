@@ -277,24 +277,30 @@ async function test8() {
     await bptree.close()
 }
 
+// 数据插入表中，并读取测试，作为测试，索引添加在AID之上
 async function test9() {
-    let name = "test"
+    let tbname = "test"
     let columns = []
     col0 = new Column("AID", 0, undefined, 1, "key0")
-    col1 = new Column("name", 2, 32, 0, undefined)
+    col1 = new Column("name", 2, 32, 0, undefined)    // 最大长度为32
 
     columns.push(col0)
     columns.push(col1)
 
-    let table = new Table(name, columns, 500)
+    let table = new Table(tbname, columns, 500)
     await table.drop()
     await table.init()
 
-    let value = [1, "lihan"]
+    let value = [1, "I am lihan"]
 
     await table.insert(value)
 
-    
+    let row = await table.selectById(1) 
+
+    let name = Buffer.alloc(32)
+    row.copy(name, 0, 4, 36)
+
+    winston.error(name.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, ""))
 
     await table.flush()
     await table.close()
