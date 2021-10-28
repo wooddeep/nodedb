@@ -294,6 +294,8 @@ async function test9() {
 
     await table.insert(value)
 
+    
+
     await table.flush()
     await table.close()
 }

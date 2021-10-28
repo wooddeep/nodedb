@@ -81,8 +81,8 @@ class DataPage extends PageBase {
 
         if (this.type == NODE_TYPE_ROOT) {  // 数据文件头结点
 
-            buff.writeInt16LE(this.colNum, COL_NUM_OFFSET)    // 空闲链表指针
-            buff.writeInt16LE(this.rowSize, ROW_SIZE_OFFSET)    // 空闲链表指针
+            buff.writeInt16LE(this.colNum, COL_NUM_OFFSET)    
+            buff.writeInt16LE(this.rowSize, ROW_SIZE_OFFSET)
             buff.writeInt16LE(this.rowNum, ROW_NUM_OFFSET)
 
             for (var i = 0; i < this.colNum; i++) {
@@ -101,6 +101,9 @@ class DataPage extends PageBase {
         } else {
             buff.writeUInt8(this.type, DATA_TYPE_OFFSET)
             this.bitmap.getBuff().copy(buff, BIT_MAP_OFFSET)
+            for (var index in this.rowMap) {
+                this.rowMap[index].copy(buff, BIT_MAP_OFFSET + this.bitMapSize + index * this.rowSize)
+            }
         }
 
         return buff

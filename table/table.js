@@ -77,7 +77,7 @@ class Table {
             let bitMapSize = Math.ceil(this.rowNum / 8) // 设置bitmap
             let bitmap = new BitMap(bitMapSize)
             node.bitmap = bitmap
-            
+
             if (type == NODE_TYPE_DATA) {
                 node.rowMap = {}
                 node.type = type
@@ -165,7 +165,8 @@ class Table {
     async insert(row) {
         // 1. 先查看空闲链表上，是否有页
         let page = await this.fetchPageNode(NODE_TYPE_DATA)
-
+        page.bitMapSize = Math.ceil(this.rootPage.rowNum / 8)
+        page.rowSize = this.rootPage.rowSize
         let holes = page.bitmap.getHoles(this.rowNum)
         let hole = holes[0]
         let byteIndex = hole[0]
@@ -187,12 +188,12 @@ class Table {
                 offset += column.typeAux
             }
         }
-        
+
         page.rowMap[slot] = rowBuff
         page.bitmap.fillHole(slot)
 
-         // 2. 已无空位, 则需要从空闲链表里面摘除
-        if (holes.length == 1) { 
+        // 2. 已无空位, 则需要从空闲链表里面摘除
+        if (holes.length == 1) {
             await this.deleteFreeNode(page)
         }
 
