@@ -17,6 +17,13 @@ class PageIndex {
     incr() {
         this.maxIndex++
     }
+
+    newPageIndex() {
+        let pageNum = this.get()
+        this.incr()
+        return pageNum
+    }
+
 }
 
 module.exports = PageIndex;

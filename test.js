@@ -1,7 +1,10 @@
 const winston = require('./winston/config');
 const Bptree = require("./bptree/bptree.js");
+const Table = require("./table/table.js")
+const Column = require("./table/column")
 const tools = require('./common/tools');
 const assert = require('assert');
+const { PAGE_SIZE } = require('./common/const');
 
 function random(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
@@ -198,7 +201,7 @@ async function test5() {
     }
     winston.info(array)
 
-    let dbname = "test5.db"
+    let dbname = "test.db"
     try {
         await bptree.drop(dbname)
     } catch (e) {
@@ -228,7 +231,7 @@ async function test5() {
 
 /* 测试value为字符串 */
 async function test6() {
-    let bptree = new Bptree(3, 1024, 9 ,100)
+    let bptree = new Bptree(3, 1024, 9, 100)
     let dbname = "test.db"
     await bptree.drop(dbname)
     await bptree.init(dbname)
@@ -252,30 +255,72 @@ async function test7() {
     await bptree.close()
 }
 
-
 async function test8() {
-    let bptree = new Bptree(500)
+    let bptree = new Bptree(100, PAGE_SIZE, 4, 6)
     let dbname = "test.db"
-
+    await bptree.drop(dbname)
     await bptree.init(dbname)
 
-    let value = await find(bptree, 29321)
-    winston.error(`value = ${value}`)
+    let buff = Buffer.alloc(6)
+    buff.writeUInt32LE(10, 0)
+    buff.writeUInt16LE(1, 4)
 
+    await writeOne(bptree, 100, buff)
+    await bptree.flush()
+    let value = await find(bptree, 100)
+
+    let pageIndex = value.readUInt32LE()
+    let slotIndex = value.readUInt16LE(4)
+
+    winston.error(`## pageIndex = ${pageIndex}, slotIndex= ${slotIndex}`)
 
     await bptree.close()
 }
 
+// 数据插入表中，并读取测试，作为测试，索引添加在AID之上, 索引尚不可配置
+async function test9() {
+    let tbname = "test"
+    let columns = []
+    col0 = new Column("AID", 0, undefined, 1, "key0")
+    col1 = new Column("name", 2, 32, 0, undefined)    // 最大长度为32
+    col2 = new Column("age", 0, undefined, 0, undefined)    // 最大长度为32
+
+    columns.push(col0)
+    columns.push(col1)
+    columns.push(col2)
+
+    let table = new Table(tbname, columns, 500)
+    await table.drop()
+    await table.init()
+
+    let value = [1, "lihan", 38]
+
+    await table.insert(value)
+
+    let row = await table.selectById(1)
+
+    let nameBuff = Buffer.alloc(32)
+    row.copy(nameBuff, 0, 4, 36)
+    let name = nameBuff.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+    let age = row.readUInt32LE(36)
+    
+    winston.error(`##name = ${name}, age = ${age}`)
+
+    await table.flush()
+    await table.close()
+}
+
 const funcList = [
-    test0,
-    test1,
-    test2,
-    test3,
-    test4,
-    test5,
-    test6,
-    test7,
-    test8
+    // test0,
+    // test1,
+    // test2,
+    // test3,
+    // test4,
+    // test5,
+    // test6,
+    // test7,
+    // test8,
+    test9,
 ]
 
 async function test() {

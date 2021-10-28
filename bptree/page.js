@@ -16,6 +16,8 @@ const {
     VAL_TYPE_NUM,
     VAL_TYPE_STR,
     VAL_TYPE_FPN,
+    VAL_TYPE_OBJ,
+    VAL_IDX_LEN,
 } = require("../common/const.js");
 
 class Page {
@@ -67,7 +69,9 @@ class Page {
             if (type == VAL_TYPE_STR) {
                 buff.write(value)
             }
-
+            if (type == VAL_TYPE_OBJ) {
+                value.copy(buff, 0)
+            }
             return buff
         }
     }

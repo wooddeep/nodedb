@@ -50,15 +50,16 @@ const {
     VAL_TYPE_NUM,
     VAL_TYPE_STR,
     VAL_TYPE_FPN,
+    VAL_TYPE_OBJ,
     VAL_TYPE_UNK,
 } = require("../common/const.js")
 
 const winston = require('../winston/config')
-const fileops = require("../common/fileops.js")
+const fileops = require("../common/fileops")
 const tools = require('../common/tools')
-const Buff = require('./pbuff.js')
+const Buff = require('../common/buff')
+const Pidx = require('../common/index')
 const Page = require('./page.js')
-const Pidx = require('./pidx.js')
 
 Buffer.prototype.compare = function (to) {
     let left = this.readInt32LE(0)
@@ -90,7 +91,7 @@ class Bptree {
         this.LESS_HALF_NUM = Math.floor(this.ORDER_NUM / 2)  // 少的一半
         this.MORE_HALF_NUM = Math.ceil(this.ORDER_NUM / 2)   // 多的一半
         this._pidx = new Pidx()
-        
+
         this._page = new Page()
         this._page.attach(this)
 
@@ -321,6 +322,10 @@ class Bptree {
 
     valueType(value) {
 
+        if (typeof (value) == 'object') {
+            return VAL_TYPE_OBJ
+        }
+
         if (typeof (value) == 'number') {
             if (Number.isInteger(value)) {
                 return VAL_TYPE_NUM
@@ -486,9 +491,7 @@ class Bptree {
     }
 
     async insert(key, value) {
-        if (value == 95) {
-            console.log("")
-        }
+
         let targetPage = await this.locateLeaf(key, this.rootPage, LOC_FOR_INSERT) // 目标叶子节点
         await this.innerInsert(targetPage, key, value)
         if (this.needUpdateMax(key)) {
@@ -508,6 +511,9 @@ class Bptree {
                 }
                 if (targetPage.cells[i].type == VAL_TYPE_STR) {
                     return targetPage.cells[i].index.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+                }
+                if (targetPage.cells[i].type == VAL_TYPE_OBJ) {
+                    return targetPage.cells[i].index
                 }
             }
         }

@@ -4,7 +4,7 @@
  */
 
 // 
-//  page node 存储分布
+//  b+树 page node 存储分布
 //  +---------------+
 //  +     TYPE      +            // 叶结点类型字段：4字节
 //  +---------------+
@@ -66,13 +66,77 @@ const MORE_HALF_NUM = Math.ceil(ORDER_NUM / 2)   // 多的一半
 const NODE_TYPE_LEAF = 0 // 叶结点
 const NODE_TYPE_STEM = 1 // 茎节点
 const NODE_TYPE_ROOT = 2 // 根节点
+const NODE_TYPE_DATA = 3 // 数据节点
 const NODE_TYPE_FREE = -1 // 空闲叶结点
 
 const VAL_TYPE_IDX = 0 // 非叶子节点存储子节点索引
 const VAL_TYPE_NUM = 1 // 叶子节点存储内容为数字
 const VAL_TYPE_STR = 2 // 叶子节点存储内容为字符串
 const VAL_TYPE_FPN = 3 // 叶子节点存储内容为浮点数
-const VAL_TYPE_UNK = 4 // 未知
+const VAL_TYPE_OBJ = 4 // 对象
+const VAL_TYPE_UNK = 5 // 未知
+
+// 
+//  data page node 数据页头结点存储分布
+//  +--------+-------+---------+----------+---------+
+//  |  PREV  |  NEXT | COL_NUM | ROW_SIZE | ROW_NUM |   // prev/next 空闲链表相关, 列数，行大小, 数据页每页行数
+//  +--------+-------+---------+----------+---------+
+//  |    NAME    | TYPE-AUX  | KT |    KEY-NAME     |   // NAME：列名称(长64字节); 
+//  +------------+-----------+----+-----------------+
+//  |    NAME    | TYPE-AUX  | KT |    KEY-NAME     |   // TYPE-AUX: 列类型及辅助(4字节);
+//  +------------+-----------+----+-----------------+
+//  |    NAME    | TYPE-AUX  | KT |    KEY-NAME     |   // KT: 键类型(1字节);
+//  +------------+-----------+----+-----------------+
+//  |    NAME    | TYPE-AUX  | KT |    KEY-NAME     |   // KEY-NAME: 键名称(64字节);
+//  +------------+-----------+----+-----------------+
+//  |                  ......                       |
+//  +-----------------------------------------------+
+//  
+
+const PREV_LEN = 4
+const NEXT_LEN = 4
+const COL_NUM_LEN = 2 // 列数 所占字节数
+const ROW_SIZE_LEN = 2 // 每行大小 所占字节数
+const ROW_NUM_LEN = 2 // 数据页内行数
+
+const COL_NAME_LEN = 64 // 列名称所占字节最大数
+const COL_TYPE_LEN = 2  // 列类型
+const COL_TYPE_AUX_LEN = 2 // 列类型辅助信息
+const KEY_TYPE_LEN = 1 //  键类型
+const KEY_NAME_LEN = 64 // 键名称所占字节最大数
+
+const PREV_OFFSET = 0
+const NEXT_OFFSET = PREV_OFFSET + PREV_LEN
+const COL_NUM_OFFSET = NEXT_OFFSET + NEXT_LEN
+const ROW_SIZE_OFFSET = COL_NUM_OFFSET + COL_NUM_LEN
+const ROW_NUM_OFFSET = ROW_SIZE_OFFSET + ROW_SIZE_LEN
+const COL_NAME_OFFSET = ROW_NUM_OFFSET + ROW_NUM_LEN
+const COL_TYPE_OFFSET = COL_NAME_OFFSET + COL_NAME_LEN
+const COL_TYPE_AUX_OFFSET = COL_TYPE_OFFSET + COL_TYPE_LEN
+const KEY_TYPE_OFFSET = COL_TYPE_AUX_OFFSET + COL_TYPE_AUX_LEN
+const KEY_NAME_OFFSET = KEY_TYPE_OFFSET + KEY_TYPE_LEN
+const COL_DESC_LEN = COL_NAME_LEN + COL_TYPE_LEN + COL_TYPE_AUX_LEN + KEY_TYPE_LEN + KEY_NAME_LEN
+
+// 
+//  data page node 数据页数据结点存储分布
+//  +--------+--------+------+----------------------+
+//  |  PREV  |  NEXT  | TYPE |       BIT_MAP        |   // BIT_MAP：标志着每一行的使用情况：空，占用，删除
+//  +--------+--------+------+----------------------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                     ROW_DATA                  |   // 一行数据
+//  +-----------------------------------------------+
+//  |                      ......                   |
+//  +-----------------------------------------------+
+//  
+const DATA_TYPE_LEN = 1 // 数据节点类型字段长度
+const DATA_HEAD_LEN = PREV_LEN + NEXT_LEN + DATA_TYPE_LEN
+const DATA_TYPE_OFFSET = NEXT_OFFSET + NEXT_LEN
+const BIT_MAP_OFFSET = DATA_TYPE_OFFSET + DATA_TYPE_LEN
 
 var constant = {
     KEY_MAX_LEN: KEY_MAX_LEN,
@@ -93,6 +157,7 @@ var constant = {
     NODE_TYPE_STEM: NODE_TYPE_STEM,
     NODE_TYPE_ROOT: NODE_TYPE_ROOT,
     NODE_TYPE_FREE: NODE_TYPE_FREE,
+    NODE_TYPE_DATA: NODE_TYPE_DATA,
     PAGE_TYPE_OFFSET: PAGE_TYPE_OFFSET,
     PAGE_PARENT_OFFSET: PAGE_PARENT_OFFSET,
     PAGE_NEXT_OFFSET: PAGE_NEXT_OFFSET,
@@ -110,7 +175,28 @@ var constant = {
     VAL_TYPE_NUM: VAL_TYPE_NUM,
     VAL_TYPE_STR: VAL_TYPE_STR,
     VAL_TYPE_FPN: VAL_TYPE_FPN,
+    VAL_TYPE_OBJ: VAL_TYPE_OBJ,
     VAL_TYPE_UNK: VAL_TYPE_UNK,
+
+    // 数据页头结点相关定义
+    COL_NAME_LEN: COL_NAME_LEN,
+    KEY_NAME_LEN: KEY_NAME_LEN,
+    COL_NUM_OFFSET: COL_NUM_OFFSET,
+    ROW_SIZE_OFFSET: ROW_SIZE_OFFSET,
+    ROW_NUM_OFFSET: ROW_NUM_OFFSET,
+    PREV_OFFSET: PREV_OFFSET,
+    NEXT_OFFSET: NEXT_OFFSET,
+    COL_NAME_OFFSET: COL_NAME_OFFSET,
+    COL_TYPE_OFFSET: COL_TYPE_OFFSET,
+    COL_TYPE_AUX_OFFSET: COL_TYPE_AUX_OFFSET,
+    KEY_TYPE_OFFSET: KEY_TYPE_OFFSET,
+    KEY_NAME_OFFSET: KEY_NAME_OFFSET,
+    COL_DESC_LEN: COL_DESC_LEN,
+
+    // 数据页 数据节点
+    DATA_HEAD_LEN: DATA_HEAD_LEN,
+    DATA_TYPE_OFFSET: DATA_TYPE_OFFSET,
+    BIT_MAP_OFFSET: BIT_MAP_OFFSET
 }
 
 module.exports = constant;
