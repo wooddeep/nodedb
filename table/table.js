@@ -11,6 +11,7 @@ const Bptree = require("../bptree/bptree.js");
 const Pidx = require("../common/index.js")
 const Buff = require("../common/buff.js")
 const DataPage = require("./page.js")
+const path = require('path')
 
 const {
     PAGE_SIZE,
@@ -119,7 +120,10 @@ class Table {
     }
 
     async init() {
-        let exist = await fileops.existFile(this.tableName)
+        let root = await tools.findRoot(path.dirname(module.filename))
+        this.tableName = path.join(root, this.tableName)
+
+        let exist = await fileops.existFile(path.basename(this.tableName))
         if (!exist) { // 文件不存在则创建
             await fileops.createFile(this.tableName)
         }
