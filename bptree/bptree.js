@@ -60,6 +60,7 @@ const tools = require('../common/tools')
 const Buff = require('../common/buff')
 const Pidx = require('../common/index')
 const Page = require('./page.js')
+const path = require('path')
 
 Buffer.prototype.compare = function (to) {
     let left = this.readInt32LE(0)
@@ -135,6 +136,10 @@ class Bptree {
     }
 
     async drop(dbname) {
+        let root = await tools.findRoot(path.dirname(module.filename))
+        this.root = root
+        dbname = path.join(this.root, dbname)
+
         try {
             let ret = await fileops.unlinkFile(dbname)
         } catch (e) {
@@ -143,6 +148,10 @@ class Bptree {
     }
 
     async init(dbname) {
+        let root = await tools.findRoot(path.dirname(module.filename))
+        this.root = root
+        dbname = path.join(this.root, dbname)
+
         let exist = await fileops.existFile(dbname)
         if (!exist) { // 文件不存在则创建
             await fileops.createFile(dbname)
