@@ -283,7 +283,7 @@ async function test9() {
     let columns = []
     col0 = new Column("AID", 0, undefined, 1, "key0")
     col1 = new Column("name", 2, 32, 0, undefined)    // 最大长度为32
-    col2 = new Column("age", 0, undefined, 0, undefined)    // 最大长度为32
+    col2 = new Column("age", 0, undefined, 0, undefined)
 
     columns.push(col0)
     columns.push(col1)
