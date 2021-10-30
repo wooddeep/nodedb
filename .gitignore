@@ -3,7 +3,5 @@ node_modules
 logs
 bak
 *.db
-*.data
-*.index
-*data*
-
+#*.index
+#data/*.data

@@ -110,12 +110,12 @@ class DataPage extends PageBase {
         return buff
     }
 
-    buffToPage(buff, bitMapSize, rowSize, rowNum) {
+    buffToPage(buff, bitMapSize, rowSize, rowNum, type) {
         let page = new DataPage()
         page.prev = buff.readInt32LE(PREV_OFFSET)
         page.next = buff.readInt32LE(NEXT_OFFSET)
 
-        if (this.type == NODE_TYPE_ROOT) {  // 数据文件头结点
+        if (type == NODE_TYPE_ROOT) {  // 数据文件头结点
             page.colNum = buff.readInt16LE(COL_NUM_OFFSET)
             page.rowSize = buff.readInt16LE(ROW_SIZE_OFFSET)
             page.rowNum = buff.readInt16LE(ROW_NUM_OFFSET)
@@ -155,11 +155,11 @@ class DataPage extends PageBase {
             buff.copy(bitMapBuff, 0, BIT_MAP_OFFSET, BIT_MAP_OFFSET + bitMapSize)
             let bitmap = new Bitmap(bitMapSize, bitMapBuff)
             page.bitmap = bitmap
-
+            page.rowMap = {}
             for (var index = 0; index < rowNum; index++) {
                 let row = Buffer.alloc(rowSize)
-                buff.copy(row, 0, BIT_MAP_OFFSET + this.bitMapSize + index * this.rowSize, BIT_MAP_OFFSET + this.bitMapSize + (index + 1) * this.rowSize)
-                this.rowMap[index] = row
+                buff.copy(row, 0, BIT_MAP_OFFSET + bitMapSize + index * rowSize, BIT_MAP_OFFSET + bitMapSize + (index + 1) * rowSize)
+                page.rowMap[index] = row
             }
         }
 

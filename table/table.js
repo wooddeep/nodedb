@@ -112,6 +112,8 @@ class Table {
 
     async drop() {
         try {
+            let root = await tools.findRoot(path.dirname(module.filename))
+            this.tableName = path.join(root, path.basename(this.tableName))
             let ret = await fileops.unlinkFile(this.tableName)
             await this._index.drop(`${this.namePrefix}.index`)
         } catch (e) {
@@ -121,12 +123,12 @@ class Table {
 
     async init() {
         let root = await tools.findRoot(path.dirname(module.filename))
-        this.tableName = path.join(root, this.tableName)
-
-        let exist = await fileops.existFile(path.basename(this.tableName))
+        this.tableName = path.join(root, path.basename(this.tableName))
+        let exist = await fileops.existFile(this.tableName)
         if (!exist) { // 文件不存在则创建
             await fileops.createFile(this.tableName)
         }
+
         await this._index.init(`${this.namePrefix}.index`) // 创建索引文件 TOOD 
         this.fileId = await fileops.openFile(this.tableName)
         let stat = await fileops.statFile(this.fileId)
@@ -150,14 +152,18 @@ class Table {
 
         let buff = Buffer.alloc(PAGE_SIZE)
         await fileops.readFile(this.fileId, buff, START_OFFSET, this.PAGE_SIZE, 0) // 文件第一页，始终放置root页
-        this.rootPage = await this._page.buffToPage(buff, this.bitMapSize, this.rowSize, this.rowNum)
+        this.rootPage = await this._page.buffToPage(buff, this.bitMapSize, this.rowSize, this.rowNum, NODE_TYPE_ROOT)
         this.rootPage.index = 0
         await this._buff.setPageNode(0, this.rootPage)
+        this.columns = this.rootPage.columns
+        this.rowSize = this.rootPage.rowSize
+        this.rowNum = this.rootPage.rowNum
+        this.bitMapSize = Math.ceil(this.rowNum / 8)
 
         let minSize = this.buffSize * this.PAGE_SIZE > stat.size ? stat.size : this.buffSize * this.PAGE_SIZE
         for (var index = this.PAGE_SIZE; index < minSize; index += this.PAGE_SIZE) {
             await fileops.readFile(this.fileId, buff, START_OFFSET, this.PAGE_SIZE, index) // 非root页
-            let pageNode = this._page.buffToPage(buff, this.bitMapSize, this.rowSize, this.rowNum)
+            let pageNode = this._page.buffToPage(buff, this.bitMapSize, this.rowSize, this.rowNum, NODE_TYPE_DATA) // TODO
             let pageIndex = Math.floor(index / this.PAGE_SIZE)
             pageNode.index = pageIndex
             await this._buff.setPageNode(pageIndex, pageNode)
