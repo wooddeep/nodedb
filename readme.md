@@ -4,7 +4,7 @@
 - [3. 设计及实现](#3-设计及实现)
   - [3.1 b+树](#31-b树)
     - [3.1.1 页结构](#311-页结构)
-      - [页节点内部布局：](#页节点内部布局)
+      - [页节点布局及关系：](#页节点布局及关系)
       - [页节点结构说明:](#页节点结构说明)
       - [页节点存储说明:](#页节点存储说明)
       - [叶结点内存存储:](#叶结点内存存储)
@@ -38,25 +38,12 @@ test/      # 测试程序路径
 
 #### 3.1.1 页结构
  
-##### 页节点内部布局：  
+##### 页节点布局及关系：  
 
-<!--
-</br>
-<div align=center>
-<img src="image/page-struct.png" alt="drawing" width="300"/>  
-</div>
-
-页节点的关联关系：  
-</br>
-<div align=center>
-<img src="image/page-relation.png" alt="drawing" width="600"/>  
-</div>
--->
-
-Solarized dark             |  Solarized Ocean
+| <!-- -->   | <!-- -->    |
 :-------------------------:|:-------------------------:
-![](image/page-struct.png)  |  ![](image/page-relation.png)
-
+![](image/page-struct.png) |  ![](image/page-relation.png)
+| 图1. 页节点内部布局         |  图2. 叶结点之间关系
 
 每个页节点的PARENT存储父节点的节点下标，NEXT存储兄节点的节点下标，PREV存储弟节点的节点下标，若节点类型非页节点，则VAL存储子节点的下标，否则存储具体的数值。  
 
