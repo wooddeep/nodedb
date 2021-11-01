@@ -45,8 +45,17 @@ test/      # 测试程序路径
 :-------------------------:|:-------------------------:
 ![](image/page-struct.png) |  ![](image/page-relation.png)
 
-###### 页节点结构说明:   
-如图1所示，为叶结点内部结构，页节点的头6个字段分别存储的为页类型、父页节点下标、兄页节点下标、弟叶结点下标、父节点CELL索引，节点内已经填充的数据个数，前4个字段各4个字节，以小端模式存储，后两个字段各2个字节。这6个字段长度的定位在const.js文件中如下：  
+###### 页节点结构说明: 
+其中页的类型定义如下：
+```javascript
+const NODE_TYPE_LEAF = 0  // 叶结点
+const NODE_TYPE_STEM = 1  // 茎节点
+const NODE_TYPE_ROOT = 2  // 根节点
+const NODE_TYPE_DATA = 3  // 数据节点
+const NODE_TYPE_FREE = -1 // 空闲叶结点
+```
+
+如图1所示，为叶结点内部结构，页节点的头6个字段分别存储的为页类型、父页节点下标、兄页节点下标、弟叶结点下标、父节点CELL索引(即由父节点的哪个VAL代表的下标所指向)，节点内已经填充的数据个数，前4个字段各4个字节，以小端模式存储，后两个字段各2个字节。这6个字段长度的定位在const.js文件中如下：  
 ```javascript
 const PAGE_TYPE_LEN = 4       // 代表类型的字节数
 const PAGE_PARENT_IDX_LEN = 4 // 父节点索引的字节数
@@ -54,12 +63,13 @@ const PAGE_NEXT_IDX_LEN = 4   // 兄节点索引的字节数
 const PAGE_PREV_IDX_LEN = 4   // 弟节点索引的字节数
 const PARENT_CELL_IDX_LEN = 2 // 父节点CELL的索引
 const CELL_USED_LEN = 2       // 使用键值数的字节数
-
 ```
-从每页的第20（4 * 5）个字节开始, 便存储的是页的具体数据，以键值对（KEY：VAL）的形式，存储的页的数据。其中，若页的类型为2或者1， 则VAL存储的是子节点的页节点下标，若页类型为0，则VAL存储的是具体的数值, 这里设计存储4字节的整形数据，后续可扩展。其中键和值的所占字节长度定义在const.js文件中：   
+
+从每页的第20（4 * 5）个字节开始, 便存储的是页的具体数据，以键值对（KEY：VAL）的形式，存储的页的数据。其中，若页的类型为2或者1， 则VAL存储的是子节点的页节点下标，若页类型为0，则VAL存储的是具体的数值, 这里设计存储4字节数据，后续可扩展。其中键和值的所占字节长度定义在const.js文件中：   
 ```javascript
-const KEY_MAX_LEN = 10 // 键最大长度
-const VAL_IDX_LEN = 4  // 值长度, 根或茎节点指向子页面, 叶子节点指向值
+const KEY_MAX_LEN = 9    // 键值长度
+const VAL_TYPE_LEN = 1   // 值类型长度
+const VAL_IDX_LEN = 4    // 值数据长度, 如果中间节点指向子页面, 叶子节点指向值
 ```
 
 其中，VAL包括两个部分(type: value), type即为数据的类型， value为数据的实际值，type的定义在const.js中:
@@ -72,7 +82,7 @@ const VAL_TYPE_OBJ = 4 // 叶子节点存储内容为对象
 const VAL_TYPE_UNK = 5 // 未知
 ```
 
-为了调试方便，设置页的大小为64，这样，每页中最大的键值对个数为3，即ORDER_NUM，这个数称为b+数的阶，定义在const.js文件中；当然实际的b+树页面不可能只存三个数据，可以增加PAGE_SIZE值来增加页面存储数据的个数。当然，在调试成功之后，可以扩大PAGE_SIZE, 以增加每页可存储的数据：
+为了调试方便，设置页的大小为64，这样，可计算出每页中最大的键值对个数为3，即ORDER_NUM，这个数称为b+数的阶，定义在const.js文件中；当然实际的b+树页面不可能只存三个数据，可以增加PAGE_SIZE值来增加页面存储数据的个数。在调试成功之后，可以扩大PAGE_SIZE, 以增加每页可存储的数据：
 ```javascript
 const PAGE_SIZE = 64 // 页大小
 const PAGE_TYPE_OFFSET = 0    // 页类型页内偏移
