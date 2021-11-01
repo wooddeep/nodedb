@@ -3,11 +3,17 @@
 - [2. 目录说明](#2-目录说明)
 - [3. 设计及实现](#3-设计及实现)
   - [3.1 b+树](#31-b树)
-    - [3.1.1 图解说明](#311-图解说明)
-      - [页节点结构说明](#页节点结构说明)
-      - [页节点存储说明](#页节点存储说明)
-      - [叶结点内存存储](#叶结点内存存储)
+    - [3.1.1 页结构](#311-页结构)
+      - [页节点内部布局：](#页节点内部布局)
+      - [页节点结构说明:](#页节点结构说明)
+      - [页节点存储说明:](#页节点存储说明)
+      - [叶结点内存存储:](#叶结点内存存储)
     - [3.1.2 页节点插入数据](#312-页节点插入数据)
+    - [3.1.2 叶结点删除](#312-叶结点删除)
+    - [3.1.3 叶结点查询](#313-叶结点查询)
+    - [3.1.4 空闲节点管理](#314-空闲节点管理)
+    - [3.1.5 buffer管理](#315-buffer管理)
+  - [3.2 数据表](#32-数据表)
 - [4. 测试](#4-测试)
   - [4.1 测试b+树](#41-测试b树)
   - [4.2 测试数据表](#42-测试数据表)
@@ -30,12 +36,36 @@ test/      # 测试程序路径
 ## 3. 设计及实现
 ### 3.1 b+树
 
-#### 3.1.1 图解说明
-为了调试、说明、理解方便，设计每个页节点，最多可以放入3个数据即order为3，当然实际的b+树页面不可能只存三个数据，可以增加PAGE_SIZE值来增加页面存储数据的个数。  
+#### 3.1.1 页结构
+ 
+##### 页节点内部布局：  
+
+<!--
+</br>
+<div align=center>
+<img src="image/page-struct.png" alt="drawing" width="300"/>  
+</div>
+
+页节点的关联关系：  
+</br>
+<div align=center>
+<img src="image/page-relation.png" alt="drawing" width="600"/>  
+</div>
+-->
+
+<center class="half">
+     <img src="image/page-struct.png" alt="drawing" height="300"/><img src="image/page-relation.png" alt="drawing" height="300"/>  
+</center>
+
+每个页节点的PARENT存储父节点的节点下标，NEXT存储兄节点的节点下标，PREV存储弟节点的节点下标，若节点类型非页节点，则VAL存储子节点的下标，否则存储具体的数值。  
+
+</br>  
+
+为了调试、说明、理解方便，设计每个页节点，最多可以放入3个数据即order为3，当然实际的b+树页面不可能只存三个数据，可以增加PAGE_SIZE值来增加页面存储数据的个数。当然，在调试成功之后，可以扩大PAGE_SIZE, 以增加每页可存储的数据。   
 
 </br>
 
-##### 页节点结构说明   
+##### 页节点结构说明:   
 页节点的头6个字段分别存储的为页类型、父页节点下标、兄页节点下标、弟叶结点下标、父节点CELL索引，节点内已经填充的数据个数，前4个字段各4个字节，以小端模式存储，后两个字段各2个字节。这6个字段长度的定位在const.js文件中如下：  
 ```javascript
 const PAGE_TYPE_LEN = 4       // 代表类型的字节数
@@ -51,6 +81,18 @@ const CELL_USED_LEN = 2       // 使用键值数的字节数
 const KEY_MAX_LEN = 10 // 键最大长度
 const VAL_IDX_LEN = 4  // 值长度, 根或茎节点指向子页面, 叶子节点指向值
 ```
+
+其中，VAL包括两个部分(type: value), type即为数据的类型， value为数据的实际值，type的定义在const.js中:
+```javascript
+const VAL_TYPE_IDX = 0 // 非叶子节点存储子节点索引
+const VAL_TYPE_NUM = 1 // 叶子节点存储内容为数字
+const VAL_TYPE_STR = 2 // 叶子节点存储内容为字符串
+const VAL_TYPE_FPN = 3 // 叶子节点存储内容为浮点数
+const VAL_TYPE_OBJ = 4 // 叶子节点存储内容为对象
+const VAL_TYPE_UNK = 5 // 未知
+```
+
+
 为了调试方便，设置页的大小为64，这样，每页中最大的键值对个数为3，即ORDER_NUM，定义在const.js文件中：
 ```javascript
 const PAGE_SIZE = 64 // 页大小
@@ -70,26 +112,8 @@ const LESS_HALF_NUM = Math.floor(ORDER_NUM / 2)  // 少的一半
 const MORE_HALF_NUM = Math.ceil(ORDER_NUM / 2)   // 多的一半
 
 ```
-当然，在调试成功之后，可以扩大PAGE_SIZE, 以增加每页可存储的数据。  
 
-页节点的存储布局：  
-</br>
-<div align=center>
-<img src="image/page-struct.png" alt="drawing" width="300"/>  
-</div>
-
-页节点的关联关系：  
-</br>
-<div align=center>
-<img src="image/page-relation.png" alt="drawing" width="600"/>  
-</div>
-
-每个页节点的PARENT存储父节点的节点下标，NEXT存储兄节点的节点下标，PREV存储弟节点的节点下标，若节点类型非页节点，则VAL存储子节点的下标，否则存储具体的数值。  
-
-</br>  
-
- 
-##### 页节点存储说明
+##### 页节点存储说明:
 数据按页连续存入单文件中，第1页的范围为0-63byte, 页下标为0，第2页的范围为64-127byte，页下标为1，依次内推，以插入数据100为例，存储文件以16进制dump出来显示如下：  
 <div align=center>
 <img src="image/100-store.png" alt="drawing" width="600"/>  
@@ -100,7 +124,7 @@ const MORE_HALF_NUM = Math.ceil(ORDER_NUM / 2)   // 多的一半
 
 </br>
 
-##### 叶结点内存存储
+##### 叶结点内存存储:
 
 借助于nodejs的特性，以map存储页的索引以及对应的页内容，定义在bptree.js文件中：
 ```javascript
@@ -175,6 +199,31 @@ fucntion newPage(type) {
 <div align=center>
 <img src="image/80.png" alt="drawing" width="600"/>  
 </div>
+
+#### 3.1.2 叶结点删除
+TODO
+
+</br>
+
+#### 3.1.3 叶结点查询
+TODO
+
+</br>
+
+#### 3.1.4 空闲节点管理
+TODO
+
+</br>
+
+#### 3.1.5 buffer管理
+TODO
+
+</br>
+
+### 3.2 数据表
+TODO
+
+</br>
 
 ## 4. 测试
 测试的demo文件在test目录下面，test_bptree.js用于测试b+树，test_table.js用于测试数据库, 直接执行:
