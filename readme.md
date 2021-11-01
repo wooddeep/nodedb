@@ -8,7 +8,6 @@
         - [页节点结构说明:](#页节点结构说明)
         - [页节点关系说明:](#页节点关系说明)
       - [页节点存储说明:](#页节点存储说明)
-      - [叶结点内存存储:](#叶结点内存存储)
     - [3.1.2 页节点插入数据](#312-页节点插入数据)
     - [3.1.2 叶结点删除](#312-叶结点删除)
     - [3.1.3 叶结点查询](#313-叶结点查询)
@@ -109,9 +108,9 @@ const MORE_HALF_NUM = Math.ceil(ORDER_NUM / 2)   // 多的一半
 
 
 ##### 页节点存储说明:
-数据按页连续存入单文件中，第1页的范围为0-63byte, 页下标为0，第2页的范围为64-127byte，页下标为1，依次内推，以插入数据100为例，存储文件以16进制dump出来显示如下：  
+数据按页连续存入单文件中，第1页的范围为0-63byte, 页下标为0，第2页的范围为64-127byte，页下标为1，依次类推，以插入数据100为例，存储文件以16进制dump出来显示如下：  
 <div align=center>
-<img src="image/100-store.png" alt="drawing" width="600"/>  
+<img src="image/100-store.png" alt="drawing" width="100%"/>  
 </div>
 &nbsp;&nbsp;&nbsp;&nbsp;结合页存储布局图可见，第1页的类型为2，说明是根节点，其兄、弟节点索引都是0xFFFFFFFF代表无所指，USED字段值为0，代表数据节点有1个被用，已知设计叶结点的数据从小到大排列，这里只有1个数据(100, 十六进制0x64)，故而把100存在下标为ORDER_NUM - 1 的位置，因为设计页的ORDER_NUM为3，故而100存在下标为2的位置，由前面的说明知道，键长度为10，这里如图即为：64 00 00 00 00 00 00 00 00 00(代表键100), 而值长度为4，这里如图即为: 01 00 00 00(代表值1)，因为本页为根节点，所以这里的1代表子节点的下标为1即第二页.   
 </br>
@@ -119,33 +118,6 @@ const MORE_HALF_NUM = Math.ceil(ORDER_NUM / 2)   // 多的一半
 
 </br>
 
-##### 叶结点内存存储:
-
-借助于nodejs的特性，以map存储页的索引以及对应的页内容，定义在bptree.js文件中：
-```javascript
-var rootPage = undefined // 根页面
-const pageMap = {} // 页节点表
-
-fucntion newPage(type) {
-    var cells = []
-    for (var index = 0; index < ORDER_NUM; index++) {
-        var cell = this.newCell()
-        cells.push(cell)
-    }
-
-    return {
-        type: type,        // 页类型：2 ~ 根, 1 ~ 中间节点, 0 ~ 叶子节点
-        parent: -1,         // 父节点
-        next: -1,           // 兄节点
-        prev: -1,           // 弟节点 
-        pcell: -1,          // 父节点 cell索引
-        used: 0,
-        cells: cells,
-    }
-}
-```
-
-</br>
 
 #### 3.1.2 页节点插入数据 
 (选取具有说明性的步骤) 
