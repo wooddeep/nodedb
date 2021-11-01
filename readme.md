@@ -53,9 +53,10 @@ test/      # 测试程序路径
 </div>
 -->
 
-<center class="half">
-     <img src="image/page-struct.png" alt="drawing" height="300"/><img src="image/page-relation.png" alt="drawing" height="300"/>  
-</center>
+Solarized dark             |  Solarized Ocean
+:-------------------------:|:-------------------------:
+![](image/page-struct.png)  |  ![](image/page-relation.png)
+
 
 每个页节点的PARENT存储父节点的节点下标，NEXT存储兄节点的节点下标，PREV存储弟节点的节点下标，若节点类型非页节点，则VAL存储子节点的下标，否则存储具体的数值。  
 
