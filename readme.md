@@ -176,6 +176,24 @@ const MORE_HALF_NUM = Math.ceil(ORDER_NUM / 2)   // 多的一半
 <p align="center">图 11. 插入到80</p>
 </br>
 
+**h. 插入101:** 
+
+如图12所示：插入101，此时101大于根节点的最大值，需要从叶结点向根节点回溯，更新相关节点最大值。
+<div align=center>
+<img src="image/101-pre.png" alt="drawing" width="100%"/>  
+</div>
+<p align="center">图 12. 插入101未更新最大值</p>
+</br>
+
+**i. 插入101后更新最大值:** 
+
+如果13所示：更新最大值后的最终结果。
+<div align=center>
+<img src="image/101.png" alt="drawing" width="100%"/>  
+</div>
+<p align="center">图 13. 插入101最终效果</p>
+</br>
+
 
 #### 3.1.2 叶结点删除
 TODO
