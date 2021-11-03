@@ -14,7 +14,6 @@ const init = () => {
   console.log(
     chalk.green(
       figlet.textSync("Nodedb CLI", {
-        font: "Ghost",
         horizontalLayout: "default",
         verticalLayout: "default"
       })
