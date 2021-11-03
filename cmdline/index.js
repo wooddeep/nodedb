@@ -11,61 +11,83 @@ const figlet = require("figlet");
 const shell = require("shelljs");
 
 const init = () => {
-  console.log(
-    chalk.green(
-      figlet.textSync("Nodedb CLI", {
-        horizontalLayout: "default",
-        verticalLayout: "default"
-      })
-    )
-  );
+    console.log(
+        chalk.green(
+            figlet.textSync("Nodedb CLI", {
+                horizontalLayout: "default",
+                verticalLayout: "default"
+            })
+        )
+    );
 };
 
 const askQuestions = () => {
-  const questions = [
-    {
-      name: "FILENAME",
-      type: "input",
-      message: "What is the name of the file without extension?"
-    },
-    {
-      type: "list",
-      name: "EXTENSION",
-      message: "What is the file extension?",
-      choices: [".rb", ".js", ".php", ".css"],
-      filter: function(val) {
-        return val.split(".")[1];
-      }
-    }
-  ];
-  return inquirer.prompt(questions);
+    const questions = [
+        {
+            name: "FILENAME",
+            prefix: '$',
+            type: "input",
+            message: "What is the name of the file without extension?"
+        },
+        {
+            type: "list",
+            name: "EXTENSION",
+            prefix: '$',
+            message: "What is the file extension?",
+            choices: [".rb", ".js", ".php", ".css"],
+            filter: function (val) {
+                return val.split(".")[1];
+            }
+        }
+    ];
+    return inquirer.prompt(questions);
 };
 
 const createFile = (filename, extension) => {
-  const filePath = `${process.cwd()}/${filename}.${extension}`
-  shell.touch(filePath);
-  return filePath;
+    const filePath = `${process.cwd()}/${filename}.${extension}`
+    shell.touch(filePath);
+    return filePath;
 };
 
 const success = filepath => {
-  console.log(
-    chalk.white.bgGreen.bold(`Done! File created at ${filepath}`)
-  );
+    console.log(
+        chalk.white.bgGreen.bold(`Done! File created at ${filepath}`)
+    );
 };
 
+const showLog = filepath => {
+    console.log(
+        chalk.white.bgGreen.bold(`Done! File path: ${filepath}`)
+    );
+};
+
+// const run = async () => {
+//     // show script introduction
+//     init();
+
+//     // ask questions
+//     const answers = await askQuestions();
+//     const { FILENAME, EXTENSION } = answers;
+
+//     // create the file
+//     const filePath = createFile(FILENAME, EXTENSION);
+
+//     // show success message
+//     success(filePath);
+// };
+
 const run = async () => {
-  // show script introduction
-  init();
+    // show script introduction
+    init();
 
-  // ask questions
-  const answers = await askQuestions();
-  const { FILENAME, EXTENSION } = answers;
+    while (true) {
+        // ask questions
+        const answers = await askQuestions();
+        const { FILENAME, EXTENSION } = answers;
+        const filePath = `${process.cwd()}/${FILENAME}.${EXTENSION}`
+        showLog(filePath);
+    }
 
-  // create the file
-  const filePath = createFile(FILENAME, EXTENSION);
-
-  // show success message
-  success(filePath);
 };
 
 run();
