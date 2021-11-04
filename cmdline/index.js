@@ -5,10 +5,28 @@
 // https://blog.csdn.net/culiu9261/article/details/107542220
 // https://www.jianshu.com/p/db8294cfa2f7  # inquirer的使用
 
+
+// readline keypress
+// https://github.com/SBoudrias/Inquirer.js/issues/662
+
+const winston = require('../winston/config');
 const inquirer = require("inquirer");
-const chalk = require("chalk");
+const readline = require('readline')
 const figlet = require("figlet");
 const shell = require("shelljs");
+const chalk = require("chalk");
+
+const history = []
+var cmdIndex = 0
+
+readline.emitKeypressEvents(process.stdin)
+process.stdin.setRawMode(true)
+process.stdin.resume()
+
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
 
 const init = () => {
     console.log(
@@ -19,28 +37,6 @@ const init = () => {
             })
         )
     );
-};
-
-const askQuestions = () => {
-    const questions = [
-        {
-            name: "FILENAME",
-            prefix: '$',
-            type: "input",
-            message: "What is the name of the file without extension?"
-        },
-        {
-            type: "list",
-            name: "EXTENSION",
-            prefix: '$',
-            message: "What is the file extension?",
-            choices: [".rb", ".js", ".php", ".css"],
-            filter: function (val) {
-                return val.split(".")[1];
-            }
-        }
-    ];
-    return inquirer.prompt(questions);
 };
 
 const createFile = (filename, extension) => {
@@ -61,33 +57,32 @@ const showLog = filepath => {
     );
 };
 
-// const run = async () => {
-//     // show script introduction
-//     init();
+const interactive = () => {
+    rl.question('> ', (answer) => { // prompt
+        process.stdout.write(`${answer}`);
+        history.push(answer)
+        interactive()
+    });
+}
 
-//     // ask questions
-//     const answers = await askQuestions();
-//     const { FILENAME, EXTENSION } = answers;
-
-//     // create the file
-//     const filePath = createFile(FILENAME, EXTENSION);
-
-//     // show success message
-//     success(filePath);
-// };
-
-const run = async () => {
-    // show script introduction
-    init();
-
-    while (true) {
-        // ask questions
-        const answers = await askQuestions();
-        const { FILENAME, EXTENSION } = answers;
-        const filePath = `${process.cwd()}/${FILENAME}.${EXTENSION}`
-        showLog(filePath);
+process.stdin.on('keypress', (str, key) => {
+    winston.info(key)
+    if (key.name == "tab") {
+        process.stdout.clearLine();  // clear current text
+        process.stdout.cursorTo(0);  // move cursor to beginning of line
+        process.stdout.write("> ");
+        process.stdout.cursorTo(2);  // move cursor to beginning of line
+        if (history.length > 0) {
+            process.stdout.write(history[cmdIndex % history.length]);
+            cmdIndex++;
+        }
     }
 
-};
+    if (str === '\u0003') {
+        process.exit()
+    }
+})
 
-run();
+// start
+init()
+interactive()
