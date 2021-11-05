@@ -9,11 +9,17 @@
 // readline keypress
 // https://github.com/SBoudrias/Inquirer.js/issues/662
 
+// https://www.npmjs.com/package/sql-cli-repl
+
+// 光标位置设置
+// https://blog.csdn.net/weixin_34121304/article/details/89473339
+
 const winston = require('../winston/config');
 const readline = require('readline')
 const figlet = require("figlet");
 const shell = require("shelljs");
 const chalk = require("chalk");
+const util = require('util')
 
 const PREFIX = '> '
 const history = []
@@ -39,7 +45,8 @@ process.stdin.resume()
 
 const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
+    terminal: true
 });
 
 function findKeyword(input) {
@@ -101,7 +108,8 @@ const interactive = () => {
 process.stdin.on('keypress', (str, key) => {
     winston.info(key)
 
-    if (key.sequence != undefined && key.sequence.length == 1 && key.sequence != "\r" ) {
+    if (key.sequence != undefined && key.sequence.length == 1
+        && key.sequence != "\r" && key.sequence != "\t") {
         currLine.push(key.sequence) // 记录每行的每个输入键值
     }
 
@@ -126,6 +134,8 @@ process.stdin.on('keypress', (str, key) => {
         }
 
         process.stdout.write(curr)
+
+        process.stdout.write(` cursor: ${util.inspect(readline)}`)
 
         currLine.length = 0 // 先清除
         currLine.push(curr) // 再放入
