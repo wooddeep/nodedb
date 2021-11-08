@@ -278,6 +278,20 @@ class Table {
 
         }
     }
+
+    async showTables() {
+        let root = await tools.findRoot(path.dirname(module.filename))
+        let files = await tools.readfile(root)
+        let names = files.map(obj => obj.name)
+        let nset = new Set(names)
+
+        let out = names.filter(name => name.search(".data") > 0)
+            .filter(name => nset.has(name.replace(".data", ".index")))
+            .map(name => name.replace(".data", ""))
+
+        //out.forEach(name => `${process.stdout.write(name)}\t`)
+        return out
+    }
 }
 
 module.exports = Table

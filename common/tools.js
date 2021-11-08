@@ -28,6 +28,21 @@ function readdir(pwd) {
     return promise
 }
 
+function readfile(pwd) {
+    let promise = new Promise((resolve, reject) => {
+        fs.readdir(pwd, { withFileTypes: true }, (err, dirs) => {
+            if (err) {
+                console.log(error)
+                reject(false)
+            } else {
+                resolve(dirs.filter(dirent => dirent.isFile()))
+            }
+        })
+    })
+    return promise
+}
+
+
 async function findRoot(pwd) {
     let dirs = await readdir(pwd)
     let out = dirs.filter(dirent => dirent.name == "data") // 生成数据库数据, 只放在 data目录
@@ -47,6 +62,8 @@ const tools = {
     buffer: buffer,
     int32le: int32le,
     findRoot: findRoot,
+    readdir: readdir,
+    readfile: readfile,
 }
 
 module.exports = tools;

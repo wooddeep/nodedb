@@ -20,6 +20,9 @@ const figlet = require("figlet");
 const shell = require("shelljs");
 const chalk = require("chalk");
 const util = require('util')
+const { Parser } = require('node-sql-parser');
+const parser = new Parser();
+const commad = require('./cmd');
 
 // readline.cursorTo(rl.output, 0, 0)
 
@@ -44,11 +47,14 @@ function completer(line) {
     return [hits.length ? hits : completions, line];
 }
 
-const { Parser } = require('node-sql-parser');
-const parser = new Parser();
 
-rl.on('line', function (line) {
+rl.on('line', async function (line) {
     line = line.trim()
+
+    if (line == 'exit') {
+        console.log('bye!');
+        process.exit(0);
+    }
 
     try {
         const ast = parser.astify(line)
@@ -56,9 +62,27 @@ rl.on('line', function (line) {
         // const sql = parser.sqlify(ast)
         // console.log(sql)
     } catch (e) {
-        console.log(
-            chalk.red.bgGreen.bold(`sql error!: ${e}`)
-        );
+        let cmds = commad.cmds.filter(obj => {
+            let arr = line.split(/\s+/)
+            let len = Math.min(arr.length, obj.cmdarr.length)
+
+            for (var i = 0; i < len; i++) {
+                if (arr[i].replace(';', '') != obj.cmdarr[i].replace(';', '')) {
+                    return false
+                }
+            }
+            return true
+        })
+
+        if (cmds.length > 0) {
+            let out = await cmds[0].execute()
+            console.log(out)
+        } else {
+            console.log(
+                chalk.red.bgGreen.bold(`sql error!: ${e}`)
+            );
+        }
+
     }
 
     rl.prompt()
