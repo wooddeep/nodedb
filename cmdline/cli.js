@@ -44,22 +44,23 @@ function completer(line) {
     return [hits.length ? hits : completions, line];
 }
 
+const { Parser } = require('node-sql-parser');
+const parser = new Parser();
+
 rl.on('line', function (line) {
-    switch (line.trim()) {
-        case 'copy':
-            console.log("复制");
-            break;
-        case 'hello':
-            rl.write("Write");
-            console.log('world!');
-            break;
-        case 'close':
-            rl.close();
-            break;
-        default:
-            console.log('没有找到命令！');
-            break;
+    line = line.trim()
+
+    try {
+        const ast = parser.astify(line)
+        console.log(ast)
+        // const sql = parser.sqlify(ast)
+        // console.log(sql)
+    } catch (e) {
+        console.log(
+            chalk.red.bgGreen.bold(`sql error!: ${e}`)
+        );
     }
+
     rl.prompt()
 });
 
