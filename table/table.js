@@ -288,7 +288,6 @@ class Table {
     // | pma__column_info       |
     // | pma__designer_settings |
     // +------------------------+
-
     async showTables() {
         let root = await tools.findRoot(path.dirname(module.filename))
         let files = await tools.readfile(root)
@@ -296,35 +295,9 @@ class Table {
         let nset = new Set(names)
         let out = names.filter(name => name.search(".data") > 0)
             .filter(name => nset.has(name.replace(".data", ".index")))
-            .map(name => name.replace(".data", ""))
+            .map(name => [name.replace(".data", "")])
 
-        let maxLen = out.sort((a, b) => (a.length >= b.length) ? -1 : 1)[0].length;
-        maxLen = Math.max(maxLen, "tables".length) // 与标签"tables"的length比较
-        let sb = new StringBuffer();
-        sb.append('+')
-        for (var i = 0; i < maxLen + 2; i++) sb.append('-') // 2: 左右两边的空格
-        sb.append('+\n')
-        sb.append('| ')
-        sb.append('tables')
-        sb.append(' |\n')
-        sb.append('+')
-        for (var i = 0; i < maxLen + 2; i++) sb.append('-') 
-        sb.append('+\n')
-
-        for (var i = 0; i < out.length; i++) {
-            sb.append('| ')
-            sb.append(out[i])
-
-            let gap = maxLen - out[i].length
-            for (var k = 0; k < gap; k++) sb.append(' ') 
-
-            sb.append(' |\n')
-            sb.append('+')
-            for (var k = 0; k < maxLen + 2; k++) sb.append('-') 
-            sb.append('+\n')
-        }
-
-        return sb.toString()
+        return tools.tableDisplayData(["Tables"], out)
     }
 
     // +-----------+-------------+------+-----+---------+-------+
@@ -334,7 +307,6 @@ class Table {
     // | usergroup | varchar(64) | NO   | PRI | NULL    |       |
     // +-----------+-------------+------+-----+---------+-------+
     // 2 rows in set (0.00 sec)
-
     async descTable(tbname) {
         let root = await tools.findRoot(path.dirname(module.filename))
         let file = path.join(root, `${tbname}.data`)
@@ -350,13 +322,18 @@ class Table {
         let rootPage = page.buffToPage(buff, undefined, undefined, undefined, NODE_TYPE_ROOT)
         let columns = rootPage.columns
 
-        let sb = new StringBuffer();
+        let header = ['Field', 'Type', 'Key']
+        let rows = []
         for (var i = 0; i < columns.length; i++) {
+            let row = []
             let column = columns[i]
-            sb.append("|").append(column.name).append('|\n')
+            row.push(column.name.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, ""))
+            row.push(columns[i].getType())
+            row.push(columns[i].getKeyType())
+            rows.push(row)
         }
-        await fileops.closeFile(fileId)
-        return sb.toString()
+
+        return tools.tableDisplayData(header, rows)
     }
 
 }

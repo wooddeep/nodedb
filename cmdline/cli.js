@@ -47,6 +47,16 @@ function completer(line) {
     return [hits.length ? hits : completions, line];
 }
 
+async function sqlExec(ast) {
+    if (ast != undefined && ast.type === 'desc') {
+        let table = ast.table
+        let out = await commad.descTable.execute(table)
+        console.log(
+            chalk.white(out)
+        );
+    }
+}
+
 rl.on('line', async function (line) {
     line = line.trim()
     let arr = line.split(/\s+/)
@@ -58,12 +68,12 @@ rl.on('line', async function (line) {
 
     try {
         const ast = parser.astify(line)
-        if (ast != undefined && ast.type === 'desc') {
-            let table = ast.table
-            let out = await commad.descTable.execute(table)
-            console.log(
-                chalk.white(out)
-            );
+        if (ast instanceof Array) {
+            for (var i = 0; i < ast.length; i++) {
+                await sqlExec(ast[i])
+            }
+        } else {
+            await sqlExec(ast)
         }
 
     } catch (e) {
