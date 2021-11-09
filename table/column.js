@@ -41,7 +41,7 @@ class Column {
     }
 
     getKeyType() {
-        switch (this.type) {
+        switch (this.keyType) {
             case 0: return "no";
             case 1: return "primary key";
             case 2: return "unique key";

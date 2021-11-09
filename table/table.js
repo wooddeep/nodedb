@@ -328,8 +328,8 @@ class Table {
             let row = []
             let column = columns[i]
             row.push(column.name.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, ""))
-            row.push(columns[i].getType())
-            row.push(columns[i].getKeyType())
+            row.push(column.getType())
+            row.push(column.getKeyType())
             rows.push(row)
         }
 
