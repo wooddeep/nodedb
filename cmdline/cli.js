@@ -47,9 +47,9 @@ function completer(line) {
     return [hits.length ? hits : completions, line];
 }
 
-
 rl.on('line', async function (line) {
     line = line.trim()
+    let arr = line.split(/\s+/)
 
     if (line == 'exit') {
         console.log('bye!');
@@ -58,14 +58,17 @@ rl.on('line', async function (line) {
 
     try {
         const ast = parser.astify(line)
-        console.log(ast)
-        // const sql = parser.sqlify(ast)
-        // console.log(sql)
+        if (ast != undefined && ast.type === 'desc') {
+            let table = ast.table
+            let out = await commad.descTable.execute(table)
+            console.log(
+                chalk.white(out)
+            );
+        }
+
     } catch (e) {
         let cmds = commad.cmds.filter(obj => {
-            let arr = line.split(/\s+/)
             let len = Math.min(arr.length, obj.cmdarr.length)
-
             for (var i = 0; i < len; i++) {
                 if (arr[i].replace(';', '') != obj.cmdarr[i].replace(';', '')) {
                     return false
@@ -75,8 +78,16 @@ rl.on('line', async function (line) {
         })
 
         if (cmds.length > 0) {
-            let out = await cmds[0].execute()
-            console.log(out)
+            try {
+                let out = await cmds[0].execute(arr)
+                console.log(
+                    chalk.white(out)
+                );
+            } catch (e) {
+                console.log(
+                    chalk.red.bgGreen.bold(`sql error!: ${e}`)
+                );
+            }
         } else {
             console.log(
                 chalk.red.bgGreen.bold(`sql error!: ${e}`)

@@ -1,0 +1,51 @@
+[{
+	"with": null,
+	"type": "select",
+	"options": null,
+	"distinct": null,
+	"columns": [{
+		"expr": {
+			"type": "column_ref",
+			"table": "t",
+			"column": "*"
+		},
+		"as": null
+	}, {
+		"expr": {
+			"type": "column_ref",
+			"table": "a",
+			"column": "b"
+		},
+		"as": null
+	}],
+	"from": [{
+		"db": null,
+		"table": "test",
+		"as": "t"
+	}, {
+		"db": null,
+		"table": "boy",
+		"as": "b",
+		"join": "LEFT JOIN",
+		"on": {
+			"type": "binary_expr",
+			"operator": "=",
+			"left": {
+				"type": "column_ref",
+				"table": "t",
+				"column": "bid"
+			},
+			"right": {
+				"type": "column_ref",
+				"table": "b",
+				"column": "id"
+			}
+		}
+	}],
+	"where": null,
+	"groupby": null,
+	"having": null,
+	"orderby": null,
+	"limit": null,
+	"for_update": null
+}]

@@ -4,6 +4,7 @@
  */
 
 const fileops = require("../common/fileops.js")
+const StringBuffer = require("stringbuffer");
 const winston = require('../winston/config')
 const tools = require('../common/tools');
 const BitMap = require("../common/bitmap.js")
@@ -279,19 +280,85 @@ class Table {
         }
     }
 
+    // +------------------------+
+    // | Tables_in_phpmyadmin   |
+    // +------------------------+
+    // | pma__bookmark          |
+    // | pma__central_columns   |
+    // | pma__column_info       |
+    // | pma__designer_settings |
+    // +------------------------+
+
     async showTables() {
         let root = await tools.findRoot(path.dirname(module.filename))
         let files = await tools.readfile(root)
         let names = files.map(obj => obj.name)
         let nset = new Set(names)
-
         let out = names.filter(name => name.search(".data") > 0)
             .filter(name => nset.has(name.replace(".data", ".index")))
             .map(name => name.replace(".data", ""))
 
-        //out.forEach(name => `${process.stdout.write(name)}\t`)
-        return out
+        let maxLen = out.sort((a, b) => (a.length >= b.length) ? -1 : 1)[0].length;
+        maxLen = Math.max(maxLen, "tables".length) // 与标签"tables"的length比较
+        let sb = new StringBuffer();
+        sb.append('+')
+        for (var i = 0; i < maxLen + 2; i++) sb.append('-') // 2: 左右两边的空格
+        sb.append('+\n')
+        sb.append('| ')
+        sb.append('tables')
+        sb.append(' |\n')
+        sb.append('+')
+        for (var i = 0; i < maxLen + 2; i++) sb.append('-') 
+        sb.append('+\n')
+
+        for (var i = 0; i < out.length; i++) {
+            sb.append('| ')
+            sb.append(out[i])
+
+            let gap = maxLen - out[i].length
+            for (var k = 0; k < gap; k++) sb.append(' ') 
+
+            sb.append(' |\n')
+            sb.append('+')
+            for (var k = 0; k < maxLen + 2; k++) sb.append('-') 
+            sb.append('+\n')
+        }
+
+        return sb.toString()
     }
+
+    // +-----------+-------------+------+-----+---------+-------+
+    // | Field     | Type        | Null | Key | Default | Extra |
+    // +-----------+-------------+------+-----+---------+-------+
+    // | username  | varchar(64) | NO   | PRI | NULL    |       |
+    // | usergroup | varchar(64) | NO   | PRI | NULL    |       |
+    // +-----------+-------------+------+-----+---------+-------+
+    // 2 rows in set (0.00 sec)
+
+    async descTable(tbname) {
+        let root = await tools.findRoot(path.dirname(module.filename))
+        let file = path.join(root, `${tbname}.data`)
+        let exist = await fileops.existFile(file)
+        if (!exist) {
+            throw new Error(`table [${tbname}] not existed!`)
+        }
+
+        let fileId = await fileops.openFile(file)
+        let page = new DataPage()
+        let buff = Buffer.alloc(PAGE_SIZE)
+        await fileops.readFile(fileId, buff, START_OFFSET, PAGE_SIZE, 0)
+        let rootPage = page.buffToPage(buff, undefined, undefined, undefined, NODE_TYPE_ROOT)
+        let columns = rootPage.columns
+
+        let sb = new StringBuffer();
+        for (var i = 0; i < columns.length; i++) {
+            let column = columns[i]
+            sb.append("|").append(column.name).append('|\n')
+        }
+        await fileops.closeFile(fileId)
+        return sb.toString()
+    }
+
 }
 
 module.exports = Table
