@@ -14,13 +14,13 @@
 // 光标位置设置
 // https://blog.csdn.net/weixin_34121304/article/details/89473339
 
+const { Parser } = require('node-sql-parser');
 const winston = require('../winston/config');
 const readline = require('readline')
 const figlet = require("figlet");
 const shell = require("shelljs");
 const chalk = require("chalk");
 const util = require('util')
-const { Parser } = require('node-sql-parser');
 const parser = new Parser();
 const commad = require('./cmd');
 
@@ -48,17 +48,15 @@ function completer(line) {
 }
 
 async function sqlExec(ast) {
-    if (ast != undefined && ast.type === 'desc') {
-        let table = ast.table
-        let out = await commad.descTable.execute(table)
-        console.log(
-            chalk.white(out)
-        );
-    }
+    if (ast == undefined) return
+
+    let out = await commad.map[ast.type].execute(ast)
+    console.log(
+        chalk.white(out)
+    );
 }
 
-rl.on('line', async function (line) {
-    line = line.trim()
+async function executeOne(line) {
     let arr = line.split(/\s+/)
 
     if (line == 'exit') {
@@ -68,19 +66,12 @@ rl.on('line', async function (line) {
 
     try {
         const ast = parser.astify(line)
-        if (ast instanceof Array) {
-            for (var i = 0; i < ast.length; i++) {
-                await sqlExec(ast[i])
-            }
-        } else {
-            await sqlExec(ast)
-        }
-
+        await sqlExec(ast)
     } catch (e) {
-        let cmds = commad.cmds.filter(obj => {
+        let cmds = commad.set.filter(obj => {
             let len = Math.min(arr.length, obj.cmdarr.length)
             for (var i = 0; i < len; i++) {
-                if (arr[i].replace(';', '') != obj.cmdarr[i].replace(';', '')) {
+                if (arr[i] != obj.cmdarr[i]) {
                     return false
                 }
             }
@@ -104,8 +95,15 @@ rl.on('line', async function (line) {
             );
         }
 
-    }
+    }    
+}
 
+rl.on('line', async function (input) {
+    let commands = input.split(';')
+    for (var i = 0; i < commands.length; i++) {
+        let line = commands[i].trim()
+        await executeOne(line)
+    }
     rl.prompt()
 });
 
