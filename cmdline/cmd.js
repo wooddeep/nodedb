@@ -1,4 +1,6 @@
 const Table = require("../table/table.js")
+var shell = require('shelljs');
+
 let table = new Table()
 
 class Command {
@@ -23,23 +25,20 @@ var descTable = new Command(['describe'], async (arr) => {
 
 // insert into test (AID, name, age) values (1, "cao", 36);
 
-// {
-//     type: 'insert',
-//     table: [ { db: null, table: 'test', as: null } ],
-//     columns: [ 'AID', 'name', 'age' ],
-//     values: [ { type: 'expr_list', value: [Array] } ],
-//     partition: null,
-//     on_duplicate_update: null
-// }
-var insert = new Command(['insert', "into"], async (ast) => {
-    console.log(JSON.stringify(ast))
+var insert = new Command(['insert', 'into'], async (ast) => {
+    console.dir(ast, {depth: null, colors: true})
     return ""
 })
 
 
+var select = new Command(['select'], async (ast) => {
+    console.dir(ast, {depth: null, colors: true})
+    return ""
+})
+
 var command = {
     set: [showTables, descTable],
-    map: { 'desc': descTable, 'insert': insert },
+    map: { 'desc': descTable, 'insert': insert, 'select': select},
 }
 
 module.exports = command;
