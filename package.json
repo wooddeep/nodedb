@@ -23,6 +23,7 @@
     "repl": "^0.1.3",
     "requireg": "^0.2.2",
     "shelljs": "^0.8.4",
+    "stringbuffer": "^1.0.0",
     "winston": "^3.3.3",
     "yargs": "^17.2.1"
   }

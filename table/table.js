@@ -4,6 +4,7 @@
  */
 
 const fileops = require("../common/fileops.js")
+const StringBuffer = require("stringbuffer");
 const winston = require('../winston/config')
 const tools = require('../common/tools');
 const BitMap = require("../common/bitmap.js")
@@ -278,6 +279,63 @@ class Table {
 
         }
     }
+
+    // +------------------------+
+    // | Tables_in_phpmyadmin   |
+    // +------------------------+
+    // | pma__bookmark          |
+    // | pma__central_columns   |
+    // | pma__column_info       |
+    // | pma__designer_settings |
+    // +------------------------+
+    async showTables() {
+        let root = await tools.findRoot(path.dirname(module.filename))
+        let files = await tools.readfile(root)
+        let names = files.map(obj => obj.name)
+        let nset = new Set(names)
+        let out = names.filter(name => name.search(".data") > 0)
+            .filter(name => nset.has(name.replace(".data", ".index")))
+            .map(name => [name.replace(".data", "")])
+
+        return tools.tableDisplayData(["Tables"], out)
+    }
+
+    // +-----------+-------------+------+-----+---------+-------+
+    // | Field     | Type        | Null | Key | Default | Extra |
+    // +-----------+-------------+------+-----+---------+-------+
+    // | username  | varchar(64) | NO   | PRI | NULL    |       |
+    // | usergroup | varchar(64) | NO   | PRI | NULL    |       |
+    // +-----------+-------------+------+-----+---------+-------+
+    // 2 rows in set (0.00 sec)
+    async descTable(tbname) {
+        let root = await tools.findRoot(path.dirname(module.filename))
+        let file = path.join(root, `${tbname}.data`)
+        let exist = await fileops.existFile(file)
+        if (!exist) {
+            throw new Error(`table [${tbname}] not existed!`)
+        }
+
+        let fileId = await fileops.openFile(file)
+        let page = new DataPage()
+        let buff = Buffer.alloc(PAGE_SIZE)
+        await fileops.readFile(fileId, buff, START_OFFSET, PAGE_SIZE, 0)
+        let rootPage = page.buffToPage(buff, undefined, undefined, undefined, NODE_TYPE_ROOT)
+        let columns = rootPage.columns
+
+        let header = ['Field', 'Type', 'Key']
+        let rows = []
+        for (var i = 0; i < columns.length; i++) {
+            let row = []
+            let column = columns[i]
+            row.push(column.name.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, ""))
+            row.push(column.getType())
+            row.push(column.getKeyType())
+            rows.push(row)
+        }
+
+        return tools.tableDisplayData(header, rows)
+    }
+
 }
 
 module.exports = Table

@@ -14,12 +14,15 @@
 // 光标位置设置
 // https://blog.csdn.net/weixin_34121304/article/details/89473339
 
+const { Parser } = require('node-sql-parser');
 const winston = require('../winston/config');
 const readline = require('readline')
 const figlet = require("figlet");
 const shell = require("shelljs");
 const chalk = require("chalk");
 const util = require('util')
+const parser = new Parser();
+const commad = require('./cmd');
 
 // readline.cursorTo(rl.output, 0, 0)
 
@@ -44,23 +47,63 @@ function completer(line) {
     return [hits.length ? hits : completions, line];
 }
 
-const { Parser } = require('node-sql-parser');
-const parser = new Parser();
+async function sqlExec(ast) {
+    if (ast == undefined) return
 
-rl.on('line', function (line) {
-    line = line.trim()
+    let out = await commad.map[ast.type].execute(ast)
+    console.log(
+        chalk.white(out)
+    );
+}
+
+async function executeOne(line) {
+    let arr = line.split(/\s+/)
+
+    if (line == 'exit') {
+        console.log('bye!');
+        process.exit(0);
+    }
 
     try {
         const ast = parser.astify(line)
-        console.log(ast)
-        // const sql = parser.sqlify(ast)
-        // console.log(sql)
+        await sqlExec(ast)
     } catch (e) {
-        console.log(
-            chalk.red.bgGreen.bold(`sql error!: ${e}`)
-        );
-    }
+        let cmds = commad.set.filter(obj => {
+            let len = Math.min(arr.length, obj.cmdarr.length)
+            for (var i = 0; i < len; i++) {
+                if (arr[i] != obj.cmdarr[i]) {
+                    return false
+                }
+            }
+            return true
+        })
 
+        if (cmds.length > 0) {
+            try {
+                let out = await cmds[0].execute(arr)
+                console.log(
+                    chalk.white(out)
+                );
+            } catch (e) {
+                console.log(
+                    chalk.red.bgGreen.bold(`sql error!: ${e}`)
+                );
+            }
+        } else {
+            console.log(
+                chalk.red.bgGreen.bold(`sql error!: ${e}`)
+            );
+        }
+
+    }    
+}
+
+rl.on('line', async function (input) {
+    let commands = input.split(';')
+    for (var i = 0; i < commands.length; i++) {
+        let line = commands[i].trim()
+        await executeOne(line)
+    }
     rl.prompt()
 });
 

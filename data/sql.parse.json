@@ -1,0 +1,132 @@
+[
+	{
+		"with": null,
+		"type": "select",
+		"options": null,
+		"distinct": null,
+		"columns": [
+			{
+				"expr": {
+					"type": "column_ref",
+					"table": "t",
+					"column": "*"
+				},
+				"as": null
+			},
+			{
+				"expr": {
+					"type": "column_ref",
+					"table": "a",
+					"column": "b"
+				},
+				"as": null
+			}
+		],
+		"from": [
+			{
+				"db": null,
+				"table": "test",
+				"as": "t"
+			},
+			{
+				"db": null,
+				"table": "boy",
+				"as": "b",
+				"join": "LEFT JOIN",
+				"on": {
+					"type": "binary_expr",
+					"operator": "=",
+					"left": {
+						"type": "column_ref",
+						"table": "t",
+						"column": "bid"
+					},
+					"right": {
+						"type": "column_ref",
+						"table": "b",
+						"column": "id"
+					}
+				}
+			}
+		],
+		"where": null,
+		"groupby": null,
+		"having": null,
+		"orderby": null,
+		"limit": null,
+		"for_update": null
+	},
+	{
+		"type": "insert",
+		"table": [
+			{
+				"db": null,
+				"table": "test",
+				"as": null
+			}
+		],
+		"columns": [
+			"AID",
+			"name",
+			"age"
+		],
+		"values": [
+			{
+				"type": "expr_list",
+				"value": [
+					{
+						"type": "number",
+						"value": 1
+					},
+					{
+						"type": "string",
+						"value": "cao"
+					},
+					{
+						"with": null,
+						"type": "select",
+						"options": null,
+						"distinct": null,
+						"columns": [
+							{
+								"expr": {
+									"type": "column_ref",
+									"table": null,
+									"column": "age"
+								},
+								"as": null
+							}
+						],
+						"from": [
+							{
+								"db": null,
+								"table": "age",
+								"as": null
+							}
+						],
+						"where": {
+							"type": "binary_expr",
+							"operator": "=",
+							"left": {
+								"type": "column_ref",
+								"table": null,
+								"column": "id"
+							},
+							"right": {
+								"type": "number",
+								"value": 1
+							}
+						},
+						"groupby": null,
+						"having": null,
+						"orderby": null,
+						"limit": null,
+						"for_update": null
+					}
+				]
+			}
+		],
+		"partition": null,
+		"on_duplicate_update": null
+	}
+]

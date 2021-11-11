@@ -30,6 +30,27 @@ class Column {
             default: return 4;
         }
     }
+
+    getType() {
+        switch (this.type) {
+            case 0: return "integer";
+            case 1: return "float";
+            case 2: return "string";
+            default: return "error";
+        }
+    }
+
+    getKeyType() {
+        switch (this.keyType) {
+            case 0: return "no";
+            case 1: return "primary key";
+            case 2: return "unique key";
+            case 3: return "key";
+            default: return "error";
+        }
+    }
+
+
 }
 
 module.exports = Column
