@@ -58,14 +58,15 @@ async function test1() {
 }
 
 async function test2() {
-    let table = new Table('test', [], 500)
-    let out = await table.descTable('test')
-    return out
+
+    let ast = parser.astify("insert into test (AID, name, age) values (3, 'mora', 8)")
+    let disp = await eval.evalInsert(ast)
+    console.log(disp)
 }
 
 const funcList = [
-    test1,
-    //test2,
+    //test1,
+    test2,
 ]
 
 async function test() {

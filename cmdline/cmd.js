@@ -27,8 +27,9 @@ var descTable = new Command(['describe'], async (arr) => {
 // insert into test (AID, name, age) values (1, "cao", 36);
 
 var insert = new Command(['insert', 'into'], async (ast) => {
-    console.dir(ast, {depth: null, colors: true})
-    return ""
+    //console.dir(ast, {depth: null, colors: true})
+    let out = await eval.evalInsert(ast)
+    return out
 })
 
 var select = new Command(['select'], async (ast) => {

@@ -183,6 +183,80 @@ class Evaluator {
         let orderby = ast.orderby
         let limit = ast.limit
     }
+
+    findColumn(columns, name) {
+        for (var i = 0; i < columns.length; i++) {
+            let column = columns[i]
+            if (column.getFieldName() == name) {
+                return column
+            }
+        }
+        return undefined
+    }
+
+    // {                                                         
+    //     type: 'insert',                                         
+    //     table: [ { db: null, table: 'test', as: null } ],       
+    //     columns: [ 'AID', 'name', 'age' ],                      
+    //     values: [                                               
+    //       {                                                     
+    //         type: 'expr_list',                                  
+    //         value: [                                            
+    //           { type: 'number', value: 1 },                     
+    //           { type: 'string', value: 'cao' },                 
+    //           { type: 'number', value: 36 }                     
+    //         ]                                                   
+    //       }                                                     
+    //     ],                                                      
+    //     partition: null,                                        
+    //     on_duplicate_update: null                               
+    //   }      
+    async evalInsert(ast) {
+        let table = ast.table
+
+        for (var ti = 0; ti < table.length; ti++) { // 创建表索引
+            let tableName = table[ti].table // 表名
+            let tableAlias = table[ti].as       // 表别名 
+
+            if (!this.tableMap.hasOwnProperty(tableName)) {
+                let table = new Table(tableName, [], 500)
+                await table.init()
+                this.tableMap[tableName] = { "table": table, "as": tableAlias }
+            }
+        }
+
+        let columns = ast.columns // 待插入的列的列名
+
+        let tableName = table[0].table // 表名, 先搞点一个表的情况
+        let tobject = this.tableMap[tableName]
+
+        let colsDef = tobject.table.columns // 表的列定义
+        let values = ast.values[0].value // TODO 通过解析类型来计算插入的值
+
+        for (var v = 0; v < values.length; v++) {
+            let value = [] //  value = [2, "cao", 36]
+            for (var c = 0; c < columns.length; c++) {
+                let colName = columns[c] // 列名称
+                let column = this.findColumn(colsDef, colName) // 获取列对象
+
+                if (column.type == 0) {  // case 0: return "integer";
+                    value.push(parseInt(values[v][c].value))
+                }
+
+                if (column.type == 1) { // case 1: return "float";
+                    value.push(parseFloat(values[v][c].value))
+                }
+
+                if (column.type == 2) {  // case 2: return "string";
+                    value.push(values[v][c].value)
+                }
+            }
+            //await table.insert(value)
+            console.log(value)
+        }
+
+        return "helloworld!"
+    }
 }
 
 module.exports = Evaluator
