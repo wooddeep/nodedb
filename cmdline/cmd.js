@@ -1,7 +1,8 @@
 const Table = require("../table/table.js")
-var shell = require('shelljs');
+const Evaluator = require("./eval.js")
 
 let table = new Table()
+let eval = new Evaluator()
 
 class Command {
     constructor(arr, exe) {
@@ -30,9 +31,9 @@ var insert = new Command(['insert', 'into'], async (ast) => {
     return ""
 })
 
-
 var select = new Command(['select'], async (ast) => {
-    console.dir(ast, {depth: null, colors: true})
+    //console.dir(ast, {depth: null, colors: true})
+    eval.evalSelect(ast)
     return ""
 })
 

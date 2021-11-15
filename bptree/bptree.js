@@ -298,6 +298,33 @@ class Bptree {
         }
     }
 
+    async locateMaxLeaf(page = this.rootPage) {
+        if (page.type == NODE_TYPE_LEAF) {
+            return page
+        }
+
+        let childIndex = page.cells[page.cells.length - 1].index // TODO page.cells.length -> this.ORDER_NUM
+        let child = await this._buff.getPageNode(childIndex, false)
+        return this.locateMaxLeaf(child)
+    }
+
+    async selectAll(maxPage) {
+        let out = []
+        let page = maxPage
+        let prev =  page.prev
+        do {
+            prev = page.prev
+            for (var index = this.ORDER_NUM - 1; index >= this.ORDER_NUM - page.used; index--) {
+                let value = page.cells[index].index
+                out.push(value)
+            }
+            page = await this._buff.getPageNode(prev, false)
+
+        } while (prev != -1)
+
+        return out
+    }
+
     /*
      * 查找cells的插入位置
      * 如果page的类型为NODE_TYPE_LEAF, 则pos随便插入, 否则需要比较值页内值

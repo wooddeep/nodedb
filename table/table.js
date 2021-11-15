@@ -136,7 +136,7 @@ class Table {
         winston.info("file size = " + stat.size)
         this._pidx.set(Math.floor(stat.size / PAGE_SIZE)) // 数据文件所占的总页数
 
-        if (stat.size < PAGE_SIZE) { // 空文件
+        if (stat.size < PAGE_SIZE) { // 空文件, 创建时进入该流程
             this.rowSize = this.calRowSize(this.columns) // 行大小
             this.rowNum = this.calRowNum(this.rowSize)
             this.rootPage = await this.fetchPageNode(NODE_TYPE_ROOT, this.rowNum)    // 新生成一个根页面
@@ -151,6 +151,7 @@ class Table {
             return this.fileId
         }
 
+        // 初始化加载数据库进入该流程
         let buff = Buffer.alloc(PAGE_SIZE)
         await fileops.readFile(this.fileId, buff, START_OFFSET, this.PAGE_SIZE, 0) // 文件第一页，始终放置root页
         this.rootPage = await this._page.buffToPage(buff, this.bitMapSize, this.rowSize, this.rowNum, NODE_TYPE_ROOT)
@@ -232,6 +233,25 @@ class Table {
         let row = page.getRow(slotIndex)
 
         return row
+    }
+
+    async selectAll(colNames = undefined) {
+        let max = await this._index.locateMaxLeaf() // 查询到最大数据所在页节点
+        let out = await this._index.selectAll(max) // 查询所有数据
+
+        let rows = []
+
+        for (var i = 0; i < out.length; i++) {
+            let value = out[i]
+            let pageIndex = value.readUInt32LE()
+            let slotIndex = value.readUInt16LE(4)
+            let page = await this._buff.getPageNode(pageIndex)
+            let row = page.getRow(slotIndex)
+
+            rows.push(row)
+        }
+
+        return rows
     }
 
     async flush() {
