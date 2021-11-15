@@ -77,13 +77,14 @@ class Evaluator {
 
     // console.dir(ast, {depth: null, colors: true})
 
-    evalWhere(ast) {
+    async evalWhere(ast) {
         let columns = ast.columns
         let from = ast.from
         let where = ast.where
 
     }
 
+    //console.dir(from, { depth: null, colors: true })
     // TODO 和 evalWhere 关联起来
     async evalFrom(ast) {
         let columns = ast.columns
@@ -91,20 +92,16 @@ class Evaluator {
 
         // 1. 先分析from看是否有join
         if (from.length == 1) { // 只从一张表中select的情况
-            let tableName = from[0].tableName // 表名
+            let tableName = from[0].table // 表名
             let tableAlias = from[0].as       // 表别名 
-
-            //console.dir(from, { depth: null, colors: true })
-
             if (typeof (columns) == 'string') { // select * from dbname
-                row = await this.tableMap[tableName].selectById(1)
-                return
+                let rows = await this.tableMap[tableName].table.selectAll()
+                return rows
             }
 
             if (columns instanceof Array) {
 
             }
-
 
             for (var dbi = 0; dbi < from.length; dbi++) {
                 //console.dir(from[dbi], { depth: null, colors: true })
@@ -120,11 +117,11 @@ class Evaluator {
         let from = ast.from
 
         for (var fi = 0; fi < from.length; fi++) { // 创建表索引
-            let tableName = from[fi].tableName // 表名
+            let tableName = from[fi].table // 表名
             let tableAlias = from[fi].as       // 表别名 
 
             if (!this.tableMap.hasOwnProperty(tableName)) {
-                let table = new Table(tbname, [], 500)
+                let table = new Table(tableName, [], 500)
                 await table.init()
                 this.tableMap[tableName] = { "table": table, "as": tableAlias }
             }
@@ -134,9 +131,10 @@ class Evaluator {
 
         let out = []
         if (where != undefined) {
-            out = this.evalWhere(ast)
+            out = await this.evalWhere(ast)
         } else {
-            out = this.evalFrom(ast)
+            out = await this.evalFrom(ast)
+            console.log(out)
         }
 
 
