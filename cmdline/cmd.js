@@ -32,9 +32,8 @@ var insert = new Command(['insert', 'into'], async (ast) => {
 })
 
 var select = new Command(['select'], async (ast) => {
-    //console.dir(ast, {depth: null, colors: true})
-    eval.evalSelect(ast)
-    return ""
+    let out = await eval.evalSelect(ast)
+    return out
 })
 
 var command = {

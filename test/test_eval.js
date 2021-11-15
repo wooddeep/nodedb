@@ -50,17 +50,9 @@ async function test1() {
     // rows = await table.selectAll()
 
     let ast = parser.astify("select * from test")
-    await eval.evalSelect(ast)
+    let disp = await eval.evalSelect(ast)
 
-
-    //cconsole.log(rows)
-
-    // nameBuff = Buffer.alloc(32)
-    // row.copy(nameBuff, 0, 4, 36)
-    // name = nameBuff.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
-    // age = row.readUInt32LE(36)
-
-    // winston.error(`##[2] name = ${name}, age = ${age}`)
+    console.log(disp)
 
     await table.close()
 }
@@ -73,7 +65,7 @@ async function test2() {
 
 const funcList = [
     test1,
-    test2,
+    //test2,
 ]
 
 async function test() {
