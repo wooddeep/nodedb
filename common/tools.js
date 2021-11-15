@@ -64,11 +64,17 @@ function tableDisplayData(header, rows, coldef = undefined) {
     let sb = new StringBuffer();
     let max = []
     for (var c = 0; c < header.length; c++) { // 遍历每列
-        let column = rows.map(row => row[c])
-        let maxLen = column.sort((a, b) => (a.length >= b.length) ? -1 : 1)[0].length; // TODO 根据列类型求显示宽度
-        let lebel = header[c]
-        maxLen = Math.max(maxLen, lebel.length) // 与标签"tables"的length比较
-        max.push(maxLen)
+        if (rows.length > 0) {
+            let column = rows.map(row => row[c])
+            let maxLen = column.sort((a, b) => (a.length >= b.length) ? -1 : 1)[0].length; // TODO 根据列类型求显示宽度
+            let lebel = header[c]
+            maxLen = Math.max(maxLen, lebel.length) // 与标签"tables"的length比较
+            max.push(maxLen)
+        } else {
+            let lebel = header[c]
+            let maxLen = lebel.length
+            max.push(maxLen)
+        }
     }
 
     // 1. 起始的 +--------+----------+

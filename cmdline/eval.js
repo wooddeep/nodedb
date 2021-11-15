@@ -1,4 +1,5 @@
 const Table = require("../table/table.js")
+const tools = require('../common/tools')
 
 class Evaluator {
     constructor() {
@@ -96,6 +97,8 @@ class Evaluator {
             let tableAlias = from[0].as       // 表别名 
             if (typeof (columns) == 'string') { // select * from dbname
                 let rows = await this.tableMap[tableName].table.selectAll()
+
+            
                 return rows
             }
 
@@ -134,9 +137,19 @@ class Evaluator {
             out = await this.evalWhere(ast)
         } else {
             out = await this.evalFrom(ast)
-            console.log(out)
-        }
+            let cols = out.cols
+            let rows = out.rows
+        
+            let header = cols.map(col => col.getFieldName())
 
+            rows.map(row => {
+                
+            })
+
+            let disp = tools.tableDisplayData(header, [['1', '2', '3']])
+            
+            console.log(disp)
+        }
 
         let orderby = ast.orderby
         let limit = ast.limit

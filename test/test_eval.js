@@ -3,10 +3,11 @@ const Table = require("../table/table.js")
 const Column = require("../table/column")
 const assert = require('assert');
 const { Parser } = require('node-sql-parser');
-const parser = new Parser();
-
 const Evaluator = require('../cmdline/eval')
-const Eval = new Evaluator()
+const tools = require('../common/tools')
+
+const parser = new Parser();
+const eval = new Evaluator()
 
 async function test1() {
     let tbname = "test"
@@ -49,7 +50,7 @@ async function test1() {
     // rows = await table.selectAll()
 
     let ast = parser.astify("select * from test")
-    Eval.evalSelect(ast)
+    await eval.evalSelect(ast)
 
 
     //cconsole.log(rows)
@@ -64,8 +65,15 @@ async function test1() {
     await table.close()
 }
 
+async function test2() {
+    let table = new Table('test', [], 500)
+    let out = await table.descTable('test')
+    return out
+}
+
 const funcList = [
     test1,
+    test2,
 ]
 
 async function test() {

@@ -239,6 +239,8 @@ class Table {
         let max = await this._index.locateMaxLeaf() // 查询到最大数据所在页节点
         let out = await this._index.selectAll(max) // 查询所有数据
 
+        this.columns
+
         let rows = []
 
         for (var i = 0; i < out.length; i++) {
@@ -251,7 +253,8 @@ class Table {
             rows.push(row)
         }
 
-        return rows
+
+        return {'rows': rows, 'cols': this.columns}
     }
 
     async flush() {

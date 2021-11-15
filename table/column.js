@@ -50,6 +50,10 @@ class Column {
         }
     }
 
+    getFieldName() {
+        return this.name.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+    }
+
 
 }
 
