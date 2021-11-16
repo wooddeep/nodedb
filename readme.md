@@ -1,5 +1,6 @@
 <!-- https://ecotrust-canada.github.io/markdown-toc/ -->
 - [1. 说明](#1-说明)
+  - [演示](#演示)
 - [2. 目录说明](#2-目录说明)
 - [3. 设计及实现](#3-设计及实现)
   - [3.1 b+树](#31-b树)
@@ -22,9 +23,14 @@
 任何一个应用系统中，数据库都处于核心的地位。不管是业务逻辑的设计，系统性能的优化最终都归结于数据库的选型和表设计。而数据库的引擎核心在于b+树，为了厘清b+树的底层原理，我准备从零开始手撸一颗b+树，并计划将来在该b+树的基础上，实现一个简单的kv存储的玩具，如果有机会的话，还可以引入sql的解析，让这个玩具更加逼真。为了劲量的降低开发难度，首先采用nodejs来实现这颗b+树，在原型验证通过之后，可以考虑切换到其他语言。目前已经实现了b+树节点的增删查改、磁盘文件的持久化，并且初步定义了关系型数据表，并引入三方的sql解析库，准备sql解释执行！
 </br>
 
+### 演示
+![](image/demo.gif)
+
+
 ## 2. 目录说明
 ```bash
 winston/   # 引用三方日志组件
+cmdline/   # 命令行工具
 common/    # 通用包: 包括工具, 缓存管理, 常量定义, 文件操作, page管理基础类等
 bptree/    # b+树包
 table/     # rdbms 数据库表相关包
@@ -224,8 +230,8 @@ TODO
 ## 4. 测试
 测试的demo文件在test目录下面，test_bptree.js用于测试b+树，test_table.js用于测试数据库, 直接执行:
 ```bash
-node test_bptree.js  # 测试b+树
-node test_tables.js  # 测试表
+node test/test_bptree.js  # 测试b+树
+node test/test_tables.js  # 测试表
 ```
 测试生成的数据，存储在data目录，在任何路径下执行test_bptree.js、test_tables.js的数据都放在根目录下的data目录
 
