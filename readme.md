@@ -30,6 +30,7 @@
 ## 2. 目录说明
 ```bash
 winston/   # 引用三方日志组件
+cmdline/   # 命令行工具
 common/    # 通用包: 包括工具, 缓存管理, 常量定义, 文件操作, page管理基础类等
 bptree/    # b+树包
 table/     # rdbms 数据库表相关包
@@ -229,8 +230,8 @@ TODO
 ## 4. 测试
 测试的demo文件在test目录下面，test_bptree.js用于测试b+树，test_table.js用于测试数据库, 直接执行:
 ```bash
-node test_bptree.js  # 测试b+树
-node test_tables.js  # 测试表
+node test/test_bptree.js  # 测试b+树
+node test/test_tables.js  # 测试表
 ```
 测试生成的数据，存储在data目录，在任何路径下执行test_bptree.js、test_tables.js的数据都放在根目录下的data目录
 
