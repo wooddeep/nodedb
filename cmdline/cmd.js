@@ -37,9 +37,13 @@ var select = new Command(['select'], async (ast) => {
     return out
 })
 
+function quit () {
+    eval.close()
+}
+
 var command = {
     set: [showTables, descTable],
-    map: { 'desc': descTable, 'insert': insert, 'select': select},
+    map: { 'desc': descTable, 'insert': insert, 'select': select, 'quit': quit},
 }
 
 module.exports = command;

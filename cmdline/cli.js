@@ -61,6 +61,7 @@ async function executeOne(line) {
 
     if (line == 'exit') {
         console.log('bye!');
+        commad.map['quit']()
         process.exit(0);
     }
 
@@ -109,6 +110,7 @@ rl.on('line', async function (input) {
 
 rl.on('close', function () {
     console.log('bye!');
+    commad.map['quit']()
     process.exit(0);
 });
 

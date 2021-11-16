@@ -58,10 +58,10 @@ async function test1() {
 }
 
 async function test2() {
-
-    let ast = parser.astify("insert into test (AID, name, age) values (3, 'mora', 8)")
+    let ast = parser.astify("insert into test (AID, name, age) values (5, 'apple', 0)")
     let disp = await eval.evalInsert(ast)
     console.log(disp)
+    await eval.close()
 }
 
 const funcList = [

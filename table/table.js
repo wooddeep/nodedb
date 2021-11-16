@@ -281,6 +281,7 @@ class Table {
 
     async close() {
         await fileops.closeFile(this.fileId)
+        await this._index.close()
     }
 
     /*

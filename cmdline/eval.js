@@ -211,12 +211,18 @@ class Evaluator {
     //     partition: null,                                        
     //     on_duplicate_update: null                               
     //   }      
-    async evalInsert(ast) {
-        let table = ast.table
 
-        for (var ti = 0; ti < table.length; ti++) { // 创建表索引
-            let tableName = table[ti].table // 表名
-            let tableAlias = table[ti].as       // 表别名 
+
+    // let table = new Table(tbname, [], 500)
+    // await table.init()
+    // await table.insert(data)
+    // await table.flush()
+    // await table.close()
+    async evalInsert(ast) {
+        let tables = ast.table
+        for (var ti = 0; ti < tables.length; ti++) { // 创建表索引
+            let tableName = tables[ti].table // 表名
+            let tableAlias = tables[ti].as       // 表别名 
 
             if (!this.tableMap.hasOwnProperty(tableName)) {
                 let table = new Table(tableName, [], 500)
@@ -226,11 +232,11 @@ class Evaluator {
         }
 
         let columns = ast.columns // 待插入的列的列名
+        let tableName = tables[0].table // 表名, 先搞点一个表的情况
 
-        let tableName = table[0].table // 表名, 先搞点一个表的情况
-        let tobject = this.tableMap[tableName]
+        let table = this.tableMap[tableName].table
 
-        let colsDef = tobject.table.columns // 表的列定义
+        let colsDef = table.columns // 表的列定义
         let value = ast.values[0].value // TODO 通过解析类型来计算插入的值
 
         let data = [] //  value = [3, "cao", 36]
@@ -251,13 +257,18 @@ class Evaluator {
             }
         }
 
-        let insertRet = await tobject.table.insert(data)
-        let row = await tobject.table.selectById(1)
-        console.log(row)
-        
-        await tobject.table.flush()
-        //await tobject.table.close()
+        let insertRet = await table.insert(data)
+        await table.flush()
         return insertRet
+
+    }
+
+    async close() {
+        for (var name in this.tableMap) {
+            var table = this.tableMap[name].table
+            await table.flush()
+            await table.close()
+        }
     }
 }
 
