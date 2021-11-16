@@ -72,7 +72,7 @@ class Table {
 
     async fetchPageNode(type = NODE_TYPE_DATA) {
         // 空闲链表上无节点
-        if (this.rootPage == undefined || this.rootPage.next == this.rootPage.prev) {
+        if (this.rootPage == undefined || this.rootPage.next == 0 /*this.rootPage.prev*/) {
             let index = this._pidx.newPageIndex()
             let node = this._page.newPage(type)
             node.index = index
@@ -175,6 +175,12 @@ class Table {
     }
 
     async insert(row) {
+        // 0. 查看主键是否冲突
+        let found = await this.selectById(row[0]) // 强制规定第一列必须为主键
+        if (found != undefined) {
+            return "primary key conflict!"
+        }
+
         // 1. 先查看空闲链表上，是否有页
         let page = await this.fetchPageNode(NODE_TYPE_DATA)
         page.bitMapSize = Math.ceil(this.rootPage.rowNum / 8)
@@ -203,6 +209,7 @@ class Table {
 
         page.rowMap[slot] = rowBuff
         page.bitmap.fillHole(slot)
+        page.dirty = true
 
         // 2. 已无空位, 则需要从空闲链表里面摘除
         if (holes.length == 1) {
@@ -217,12 +224,14 @@ class Table {
         index.writeUInt16LE(slot, 4) // 页内偏移
         let kbuf = tools.buffer(row[0])
         await this._index.insert(kbuf, index) // TODO 暂时以第一列为主键，创建索引
+        return "ok"
     }
 
 
     async selectById(key) {
         let kbuf = tools.buffer(key)
         let value = await this._index.select(kbuf)
+        if (value == undefined) return undefined
 
         let pageIndex = value.readUInt32LE()
         let slotIndex = value.readUInt16LE(4)
@@ -254,7 +263,7 @@ class Table {
         }
 
 
-        return {'rows': rows, 'cols': this.columns}
+        return { 'rows': rows, 'cols': this.columns }
     }
 
     async flush() {

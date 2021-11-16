@@ -231,31 +231,33 @@ class Evaluator {
         let tobject = this.tableMap[tableName]
 
         let colsDef = tobject.table.columns // 表的列定义
-        let values = ast.values[0].value // TODO 通过解析类型来计算插入的值
+        let value = ast.values[0].value // TODO 通过解析类型来计算插入的值
 
-        for (var v = 0; v < values.length; v++) {
-            let value = [] //  value = [2, "cao", 36]
-            for (var c = 0; c < columns.length; c++) {
-                let colName = columns[c] // 列名称
-                let column = this.findColumn(colsDef, colName) // 获取列对象
+        let data = [] //  value = [3, "cao", 36]
+        for (var c = 0; c < columns.length; c++) {
+            let colName = columns[c] // 列名称
+            let column = this.findColumn(colsDef, colName) // 获取列对象
 
-                if (column.type == 0) {  // case 0: return "integer";
-                    value.push(parseInt(values[v][c].value))
-                }
-
-                if (column.type == 1) { // case 1: return "float";
-                    value.push(parseFloat(values[v][c].value))
-                }
-
-                if (column.type == 2) {  // case 2: return "string";
-                    value.push(values[v][c].value)
-                }
+            if (column.type == 0) {  // case 0: return "integer";
+                data.push(parseInt(value[c].value)) // TODO 如果value是表达式, 需要计算表达式的值
             }
-            //await table.insert(value)
-            console.log(value)
+
+            if (column.type == 1) { // case 1: return "float";
+                data.push(parseFloat(value[c].value))
+            }
+
+            if (column.type == 2) {  // case 2: return "string";
+                data.push(value[c].value)
+            }
         }
 
-        return "helloworld!"
+        let insertRet = await tobject.table.insert(data)
+        let row = await tobject.table.selectById(1)
+        console.log(row)
+        
+        await tobject.table.flush()
+        //await tobject.table.close()
+        return insertRet
     }
 }
 

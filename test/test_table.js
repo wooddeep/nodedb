@@ -53,15 +53,18 @@ async function test1() {
     await table.init()
 
     let value = [1, "lihan", 38]
-
     await table.insert(value)
 
     value = [2, "cao", 36]
+    await table.insert(value)  
 
+    value = [3, "mora", 8]
     await table.insert(value)
 
-    let row = await table.selectById(1)
+    await table.flush()
 
+    // 查询
+    let row = await table.selectById(2)
     let nameBuff = Buffer.alloc(32)
     row.copy(nameBuff, 0, 4, 36)
     let name = nameBuff.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
@@ -69,22 +72,22 @@ async function test1() {
 
     winston.error(`##[1] name = ${name}, age = ${age}`)
 
-    await table.flush()
+    //await table.flush()
     await table.close()
 
-    table = new Table(tbname, [], 500)
-    await table.init()
+    // table = new Table(tbname, [], 500)
+    // await table.init()
 
-    row = await table.selectById(1)
+    // row = await table.selectById(1)
 
-    nameBuff = Buffer.alloc(32)
-    row.copy(nameBuff, 0, 4, 36)
-    name = nameBuff.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
-    age = row.readUInt32LE(36)
+    // nameBuff = Buffer.alloc(32)
+    // row.copy(nameBuff, 0, 4, 36)
+    // name = nameBuff.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+    // age = row.readUInt32LE(36)
 
-    winston.error(`##[2] name = ${name}, age = ${age}`)
+    // winston.error(`##[2] name = ${name}, age = ${age}`)
 
-    await table.close()
+    // await table.close()
 }
 
 async function test2() {
@@ -141,8 +144,8 @@ async function test2() {
 
 const funcList = [
     //test0,
-    //test1,
-    test2,
+    test1,
+    //test2,
 ]
 
 async function test() {
