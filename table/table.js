@@ -72,7 +72,7 @@ class Table {
 
     async fetchPageNode(type = NODE_TYPE_DATA) {
         // 空闲链表上无节点
-        if (this.rootPage == undefined || this.rootPage.next == this.rootPage.prev) {
+        if (this.rootPage == undefined || this.rootPage.next == 0 /*this.rootPage.prev*/) {
             let index = this._pidx.newPageIndex()
             let node = this._page.newPage(type)
             node.index = index
@@ -136,7 +136,7 @@ class Table {
         winston.info("file size = " + stat.size)
         this._pidx.set(Math.floor(stat.size / PAGE_SIZE)) // 数据文件所占的总页数
 
-        if (stat.size < PAGE_SIZE) { // 空文件
+        if (stat.size < PAGE_SIZE) { // 空文件, 创建时进入该流程
             this.rowSize = this.calRowSize(this.columns) // 行大小
             this.rowNum = this.calRowNum(this.rowSize)
             this.rootPage = await this.fetchPageNode(NODE_TYPE_ROOT, this.rowNum)    // 新生成一个根页面
@@ -151,6 +151,7 @@ class Table {
             return this.fileId
         }
 
+        // 初始化加载数据库进入该流程
         let buff = Buffer.alloc(PAGE_SIZE)
         await fileops.readFile(this.fileId, buff, START_OFFSET, this.PAGE_SIZE, 0) // 文件第一页，始终放置root页
         this.rootPage = await this._page.buffToPage(buff, this.bitMapSize, this.rowSize, this.rowNum, NODE_TYPE_ROOT)
@@ -174,6 +175,12 @@ class Table {
     }
 
     async insert(row) {
+        // 0. 查看主键是否冲突
+        let found = await this.selectById(row[0]) // 强制规定第一列必须为主键
+        if (found != undefined) {
+            return "primary key conflict!"
+        }
+
         // 1. 先查看空闲链表上，是否有页
         let page = await this.fetchPageNode(NODE_TYPE_DATA)
         page.bitMapSize = Math.ceil(this.rootPage.rowNum / 8)
@@ -202,6 +209,7 @@ class Table {
 
         page.rowMap[slot] = rowBuff
         page.bitmap.fillHole(slot)
+        page.dirty = true
 
         // 2. 已无空位, 则需要从空闲链表里面摘除
         if (holes.length == 1) {
@@ -216,12 +224,14 @@ class Table {
         index.writeUInt16LE(slot, 4) // 页内偏移
         let kbuf = tools.buffer(row[0])
         await this._index.insert(kbuf, index) // TODO 暂时以第一列为主键，创建索引
+        return "ok"
     }
 
 
     async selectById(key) {
         let kbuf = tools.buffer(key)
         let value = await this._index.select(kbuf)
+        if (value == undefined) return undefined
 
         let pageIndex = value.readUInt32LE()
         let slotIndex = value.readUInt16LE(4)
@@ -232,6 +242,28 @@ class Table {
         let row = page.getRow(slotIndex)
 
         return row
+    }
+
+    async selectAll(colNames = undefined) {
+        let max = await this._index.locateMaxLeaf() // 查询到最大数据所在页节点
+        let out = await this._index.selectAll(max) // 查询所有数据
+
+        this.columns
+
+        let rows = []
+
+        for (var i = 0; i < out.length; i++) {
+            let value = out[i]
+            let pageIndex = value.readUInt32LE()
+            let slotIndex = value.readUInt16LE(4)
+            let page = await this._buff.getPageNode(pageIndex)
+            let row = page.getRow(slotIndex)
+
+            rows.push(row)
+        }
+
+
+        return { 'rows': rows, 'cols': this.columns }
     }
 
     async flush() {
@@ -249,6 +281,7 @@ class Table {
 
     async close() {
         await fileops.closeFile(this.fileId)
+        await this._index.close()
     }
 
     /*

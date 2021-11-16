@@ -81,7 +81,7 @@ class BitMap {
         let remain = Math.floor(bitPos - 8 * bytes) // 余下的
 
         let byte = this.bitmap[bytes]
-        byte = byte | (0x01 << (7 - remain))
+        byte = byte | (0x01 << remain)
 
         this.bitmap[bytes] = byte
     }
