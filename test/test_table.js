@@ -124,10 +124,15 @@ async function test2() {
     await testSelectAll("test")
 }
 
+async function test3() {
+    await testSelectAll("demo")
+}
+
 const funcList = [
-    //test0,
     //test1,
-    test2,
+    //test1,
+    //test2,
+    test3,
 ]
 
 async function test() {

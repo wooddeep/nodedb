@@ -88,7 +88,7 @@ class Evaluator {
         }
     }
 
-    // CREATE TABLE `demo`( `demo_id` INT UNSIGNED AUTO_INCREMENT, `title` CHAR(100) NOT NULL, PRIMARY KEY ( `demo_id`), index title_index(`title`));
+    // CREATE TABLE `demo`( `demo_id` INT UNSIGNED AUTO_INCREMENT, `title` CHAR(100) NOT NULL, PRIMARY KEY ( `demo_id`));
     // 目前, 只创建单表
     async evalCreateTable(ast) {
 
@@ -173,6 +173,11 @@ class Evaluator {
             }
         }
 
+        if (this.tableMap.hasOwnProperty(tableName)) {
+            this.tableMap[tableName].table.close()
+            this.tableMap[tableName] = undefined
+        }
+        
         return 'ok'
     }
 
