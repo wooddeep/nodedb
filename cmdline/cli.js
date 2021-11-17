@@ -67,6 +67,7 @@ async function executeOne(line) {
 
     try {
         const ast = parser.astify(line)
+        //console.dir(ast, {depth: null, colors: true})
         await sqlExec(ast)
     } catch (e) {
         let cmds = commad.set.filter(obj => {

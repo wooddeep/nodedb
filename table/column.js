@@ -1,15 +1,17 @@
 const {
     COL_NAME_LEN,
     KEY_NAME_LEN,
+    COL_TYPE_INT,
+    KEY_TYPE_NULL,
 } = require("../common/const")
 
 class Column {
 
     constructor(
         name = "",
-        type = 0, // 0 ~ int, 1 ~ float, 2 ~ string
+        type = COL_TYPE_INT, // 0 ~ int, 1 ~ float, 2 ~ string
         typeAux = 0, // 字符串长度
-        keyType = 0, // 0 ~ null, 1 ~ primary key, 2 ~ unique key, 3 ~ key
+        keyType = KEY_TYPE_NULL, // 0 ~ null, 1 ~ primary key, 2 ~ unique key, 3 ~ key
         keyName = ""
     ) {
         this.name = Buffer.alloc(COL_NAME_LEN)
@@ -19,7 +21,6 @@ class Column {
         this.keyType = keyType
         this.keyName = Buffer.alloc(KEY_NAME_LEN)
         this.keyName.write(keyName)
-
     }
 
     size() {
@@ -54,7 +55,19 @@ class Column {
         return this.name.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
     }
 
+    setKeyType(type) {
+        this.keyType = type
+    }
 
+    setKeyName(name) {
+        if (name == undefined) return
+        this.keyName.fill(0)
+        this.keyName.write(name)
+    }
+
+    getKeyName() {
+        return this.keyName.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+    }
 }
 
 module.exports = Column

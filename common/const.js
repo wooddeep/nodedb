@@ -138,6 +138,18 @@ const DATA_HEAD_LEN = PREV_LEN + NEXT_LEN + DATA_TYPE_LEN
 const DATA_TYPE_OFFSET = NEXT_OFFSET + NEXT_LEN
 const BIT_MAP_OFFSET = DATA_TYPE_OFFSET + DATA_TYPE_LEN
 
+
+// 数据表列的定义 0 ~ int, 1 ~ float, 2 ~ string
+const COL_TYPE_INT = 0
+const COL_TYPE_FLOAT = 1
+const COL_TYPE_STRING = 2
+
+// 键的定义 0 ~ null, 1 ~ primary key, 2 ~ unique key, 3 ~ key
+const KEY_TYPE_NULL = 0
+const KEY_TYPE_PRIMARY = 1
+const KEY_TYPE_UNIQUE = 2
+const KEY_TYPE_INDEX = 3
+
 var constant = {
     KEY_MAX_LEN: KEY_MAX_LEN,
     VAL_TYPE_LEN: VAL_TYPE_LEN,
@@ -196,7 +208,16 @@ var constant = {
     // 数据页 数据节点
     DATA_HEAD_LEN: DATA_HEAD_LEN,
     DATA_TYPE_OFFSET: DATA_TYPE_OFFSET,
-    BIT_MAP_OFFSET: BIT_MAP_OFFSET
+    BIT_MAP_OFFSET: BIT_MAP_OFFSET,
+
+    // 表的相关定义
+    COL_TYPE_INT: COL_TYPE_INT,
+    COL_TYPE_FLOAT: COL_TYPE_FLOAT,
+    COL_TYPE_STRING: COL_TYPE_STRING,
+    KEY_TYPE_NULL: KEY_TYPE_NULL,
+    KEY_TYPE_PRIMARY: KEY_TYPE_PRIMARY,
+    KEY_TYPE_UNIQUE: KEY_TYPE_UNIQUE,
+    KEY_TYPE_INDEX: KEY_TYPE_INDEX,
 }
 
 module.exports = constant;

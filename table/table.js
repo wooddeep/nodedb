@@ -345,7 +345,7 @@ class Table {
         let file = path.join(root, `${tbname}.data`)
         let exist = await fileops.existFile(file)
         if (!exist) {
-            throw new Error(`table [${tbname}] not existed!`)
+            throw new Error(`#error: table [${tbname}] not existed!`)
         }
 
         let fileId = await fileops.openFile(file)
