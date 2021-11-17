@@ -246,12 +246,12 @@ class Table {
 
     async selectAll(colNames = undefined) {
         let max = await this._index.locateMaxLeaf() // 查询到最大数据所在页节点
-        let out = await this._index.selectAll(max) // 查询所有数据
-
-        this.columns
+        let out = []
+        if (max.type != NODE_TYPE_ROOT) {
+            out = await this._index.selectAll(max) // 查询所有数据
+        }
 
         let rows = []
-
         for (var i = 0; i < out.length; i++) {
             let value = out[i]
             let pageIndex = value.readUInt32LE()
@@ -345,7 +345,7 @@ class Table {
         let file = path.join(root, `${tbname}.data`)
         let exist = await fileops.existFile(file)
         if (!exist) {
-            throw new Error(`table [${tbname}] not existed!`)
+            throw new Error(`#error: table [${tbname}] not existed!`)
         }
 
         let fileId = await fileops.openFile(file)

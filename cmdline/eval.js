@@ -1,9 +1,189 @@
 const Table = require("../table/table.js")
 const tools = require('../common/tools')
+const Column = require("../table/column.js")
+const path = require('path')
+
+const {
+    COL_TYPE_INT,
+    COL_TYPE_FLOAT,
+    COL_TYPE_STRING,
+    KEY_TYPE_NULL,
+    KEY_TYPE_PRIMARY,
+    KEY_TYPE_INDEX,
+} = require("../common/const")
+const fileops = require("../common/fileops.js")
 
 class Evaluator {
+
     constructor() {
         this.tableMap = {}
+    }
+
+    // {                                                                              
+    //     type: 'create',                                                              
+    //     keyword: 'table',                                                            
+    //     temporary: null,                                                             
+    //     if_not_exists: null,                                                         
+    //     table: [ { db: null, table: 'demo' } ],                                      
+    //     ignore_replace: null,                                                        
+    //     as: null,                                                                    
+    //     query_expr: null,                                                            
+    //     create_definitions: [                                                        
+    //       {                                                                          
+    //         column: { type: 'column_ref', table: null, column: 'demo_id' },          
+    //         definition: { dataType: 'INT', suffix: [ 'UNSIGNED' ] },                 
+    //         resource: 'column',                                                      
+    //         auto_increment: 'auto_increment'                                         
+    //       },                                                                         
+    //       {                                                                          
+    //         column: { type: 'column_ref', table: null, column: 'title' },            
+    //         definition: { dataType: 'CHAR', length: 100 },                           
+    //         resource: 'column',                                                      
+    //         nullable: { type: 'not null', value: 'not null' }                        
+    //       },                                                                         
+    //       {                                                                          
+    //         constraint: null,                                                        
+    //         definition: [ 'demo_id' ],                                               
+    //         constraint_type: 'primary key',                                          
+    //         keyword: null,                                                           
+    //         index_type: null,                                                        
+    //         resource: 'constraint',                                                  
+    //         index_options: null                                                      
+    //       },                                                                         
+    //       {                                                                          
+    //         index: 'title_index',                                                    
+    //         definition: [ 'title' ],                                                 
+    //         keyword: 'index',                                                        
+    //         index_type: null,                                                        
+    //         resource: 'index',                                                       
+    //         index_options: null                                                      
+    //       }                                                                          
+    //     ],                                                                           
+    //     table_options: null                                                          
+    //   }                                                                                                                                                                   
+
+    getColtype(type) {
+        if (type.toLowerCase().search('int') >= 0) {
+            return COL_TYPE_INT
+        }
+
+        if (type.toLowerCase().search('float') >= 0) { // 辅助定义
+            return COL_TYPE_FLOAT
+        }
+
+        if (type.toLowerCase().search('char') >= 0) { // 辅助定义
+            return COL_TYPE_STRING
+        }
+    }
+
+    resetKey(cols, colname, keyType, keyName) {
+        for (var ci = 0; ci < cols.length; ci++) {
+            let column = cols[ci]
+            for (var cni = 0; cni < colname.length; cni++) {
+                if (column.getFieldName() == colname[cni]) { // 匹配上名称
+                    column.setKeyType(keyType)
+                    column.setKeyName(keyName)
+                }
+            }
+        }
+    }
+
+    // CREATE TABLE `demo`( `demo_id` INT UNSIGNED AUTO_INCREMENT, `title` CHAR(100) NOT NULL, PRIMARY KEY ( `demo_id`));
+    // 目前, 只创建单表
+    async evalCreateTable(ast) {
+
+        let tableName = ast.table[0].table
+        let tableAlias = ast.table[0].as
+
+        let defs = ast.create_definitions
+        // col0 = new Column("AID", 0, undefined, 1, "key0")
+        let columns = []
+        for (var i = 0; i < defs.length; i++) {
+            let def = defs[i]
+            let resource = def.resource
+
+            if (resource == 'column') { // 列定义
+                let colName = def.column.column
+                let type = this.getColtype(def.definition.dataType) // INT, CHAR
+
+                let typeAux = undefined
+                if (type == COL_TYPE_STRING) { // 辅助定义
+                    typeAux = def.definition.length
+                }
+
+                let col = new Column(colName, type, typeAux, 0, undefined) // key type 和 key name 暂时不填
+                columns.push(col)
+            }
+        }
+
+        // 设置键类型
+        for (var i = 0; i < defs.length; i++) {
+            let def = defs[i]
+            let resource = def.resource
+
+            if (resource == 'constraint') { // 约束条件
+                let type = def.constraint_type
+                if (type.search('primary') >= 0) { // 主键 添加索引
+                    let definition = def.definition
+                    this.resetKey(columns, definition, KEY_TYPE_PRIMARY, undefined)
+                }
+            }
+
+            if (resource == 'index') { // 普通索引
+                let definition = def.definition
+                let keyName = def.index
+                this.resetKey(columns, definition, KEY_TYPE_INDEX, keyName)
+            }
+        }
+
+        let primaryOk = columns[0].keyType == KEY_TYPE_PRIMARY
+        if (!primaryOk) {
+            return "#error: the first column must be a primary key!"
+        }
+
+        let table = new Table(tableName, columns, 500)
+        await table.drop()
+        await table.init()
+        await table.flush()
+        this.tableMap[tableName] = { "table": table, "as": tableAlias }
+
+        return 'ok'
+    }
+
+    // 删除表时, 把表关联的index一并删除掉, 只支持删一个表
+    async evalDropTable(ast) {
+
+        let tableName = ast.name[0].table
+
+        // 查看文件是否存在, 若存在, 则删除, 否则提示数据库不存在
+        let root = await tools.findRoot(path.dirname(module.filename))
+        let files = await tools.readfile(root)
+        let names = files.map(obj => obj.name)
+
+        let out = names.filter(name => name.search(tableName) >= 0)
+        if (out.length <= 0) {
+            return `#error: table ${tableName} not existd!`
+        }
+
+        for (var i = 0; i < out.length; i++) {
+            let file = path.join(root, out[i])
+            let ret = await fileops.unlinkFile(file)
+            if (!ret) {
+                return `#error: drop table ${tableName} fail, try again!`
+            }
+        }
+
+        if (this.tableMap.hasOwnProperty(tableName)) {
+            this.tableMap[tableName].table.close()
+            this.tableMap[tableName] = undefined
+        }
+        
+        return 'ok'
+    }
+
+    async evalDropIndex(ast) {
+        console.dir(ast, { depth: null, colors: true })
+        return 'ok'
     }
 
     // {
@@ -76,8 +256,6 @@ class Evaluator {
     // select * from test left join demo on test.id = demo.demo_id;
     // select  t.id, t.name, t.age, d.demo_id, d.name from test t left join demo d on t.id = de.demo_id;
 
-    // console.dir(ast, {depth: null, colors: true})
-
     async evalWhere(ast) {
         let columns = ast.columns
         let from = ast.from
@@ -97,7 +275,6 @@ class Evaluator {
             let tableAlias = from[0].as       // 表别名 
             if (typeof (columns) == 'string') { // select * from dbname
                 let rows = await this.tableMap[tableName].table.selectAll()
-
 
                 return rows
             }

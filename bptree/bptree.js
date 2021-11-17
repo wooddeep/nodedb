@@ -304,6 +304,10 @@ class Bptree {
         }
 
         let childIndex = page.cells[page.cells.length - 1].index // TODO page.cells.length -> this.ORDER_NUM
+        if (childIndex == 0) { // 还没有数据页
+            return page
+        }
+
         let child = await this._buff.getPageNode(childIndex, false)
         return this.locateMaxLeaf(child)
     }
