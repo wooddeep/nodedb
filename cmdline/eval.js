@@ -177,7 +177,7 @@ class Evaluator {
             this.tableMap[tableName].table.close()
             this.tableMap[tableName] = undefined
         }
-        
+
         return 'ok'
     }
 
@@ -256,11 +256,50 @@ class Evaluator {
     // select * from test left join demo on test.id = demo.demo_id;
     // select  t.id, t.name, t.age, d.demo_id, d.name from test t left join demo d on t.id = de.demo_id;
 
+    // where: {                                                    
+    //     type: 'binary_expr',                                      
+    //     operator: '=',                                            
+    //     left: { type: 'column_ref', table: null, column: 'AID' }, 
+    //     right: { type: 'number', value: 1 }                       
+    //   },                                                          
+
     async evalWhere(ast) {
         let columns = ast.columns
         let from = ast.from
         let where = ast.where
+        let type = where.type
 
+
+        switch (type) {
+            case 'binary_expr':
+                let left = where.left
+                let right = where.right
+                let oper = where.operator
+
+                switch (oper) {
+                    case '=':
+                        break;
+
+                    case 'IN': // 先走全表扫描, 
+                        let leftVal = await this.evalValue(left) // { type: 'column_ref', table: null, column: 'AID' }
+                        let rightVal = await this.evalValue(right)
+                        // 优化器, 分情况讨论 column, expr(column)
+                        let leftType = leftVal.type
+
+                        break;
+
+                    default:
+                        break;
+                }
+
+                break;
+
+            default:
+                break;
+        }
+
+
+        console.dir(ast, { depth: null, colors: true })
     }
 
     //console.dir(from, { depth: null, colors: true })
@@ -331,6 +370,9 @@ class Evaluator {
 
     // 假设orderby 默认以聚簇索引排序, 如果指明了具体的orderby的字段, 则必须在字段上面添加索引!
     async evalSelect(ast) {
+
+        console.dir(ast, { depth: null, colors: true })
+
         let columns = ast.columns
         let from = ast.from
 
@@ -359,6 +401,8 @@ class Evaluator {
 
         let orderby = ast.orderby
         let limit = ast.limit
+
+        return "hello"
     }
 
     findColumn(columns, name) {
@@ -437,6 +481,35 @@ class Evaluator {
         let insertRet = await table.insert(data)
         await table.flush()
         return insertRet
+
+    }
+
+
+    async evalValue(ast) {
+        let type = ast.type
+        switch (type) {
+            case 'column_ref': //   { type: 'column_ref', table: null, column: 'AID' },
+                return ast
+
+            case 'expr_list':
+                let out = []
+                let value = ast.value
+                for (var i = 0; i < value.length; i++) {
+                    let val = value[i]
+                    let ret = await this.evalValue(val)
+                    if (ret instanceof Array) {
+                        out.push(...ret) // 数组解构
+                    }
+                }
+                return out
+
+            case 'select':
+                out = await this.evalSelect(ast)
+                return out
+
+            default:
+                break
+        }
 
     }
 

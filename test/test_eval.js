@@ -64,9 +64,18 @@ async function test2() {
     await eval.close()
 }
 
+async function test3() {
+    let ast = parser.astify("select * from test where AID in (select * from test)") //"select * from test where AID in (select AID from test)"
+    let disp = await eval.evalSelect(ast)
+    console.log(disp)
+    await eval.close()
+}
+
+
 const funcList = [
     //test1,
-    test2,
+    //test2,
+    test3
 ]
 
 async function test() {
