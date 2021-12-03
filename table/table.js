@@ -229,10 +229,29 @@ class Table {
         return "ok"
     }
 
-
     async selectById(key) {
         let kbuf = tools.buffer(key)
         let value = await this._index.select(kbuf)
+        if (value == undefined) return undefined
+
+        let pageIndex = value.readUInt32LE()
+        let slotIndex = value.readUInt16LE(4)
+
+        winston.info(`## pageIndex = ${pageIndex}, slotIndex= ${slotIndex}`)
+
+        let page = await this._buff.getPageNode(pageIndex)
+        let row = page.getRow(slotIndex)
+
+        return row
+    }
+
+    /*
+     * 根据加索引的名称来, TODO 多索引的情况
+     */
+    async selectByIndex(keyName, keyValue) {
+
+        let kbuf = tools.buffer(keyValue)
+        let value = await this._index.select(kbuf) // TODO 多索引的情况
         if (value == undefined) return undefined
 
         let pageIndex = value.readUInt32LE()
@@ -267,24 +286,18 @@ class Table {
         return { 'rows': rows, 'cols': this.columns }
     }
 
-    async selectAllByIndex(key, Val = []) {
-        let max = await this._index.locateMaxLeaf() // 查询到最大数据所在页节点
-        let out = []
-        if (max.type != NODE_TYPE_ROOT) {
-            out = await this._index.selectAll(max) // 查询所有数据
-        }
+    async selectAllByIndex(key, vals = []) {
 
         let rows = []
-        for (var i = 0; i < out.length; i++) {
-            let value = out[i]
-            let pageIndex = value.readUInt32LE()
-            let slotIndex = value.readUInt16LE(4)
-            let page = await this._buff.getPageNode(pageIndex)
-            let row = page.getRow(slotIndex)
 
-            rows.push(row)
+        for (var v = 0; v < vals.length; v++) {
+            var val = vals[v]
+            var row = await this.selectByIndex(key, val)
+            if (row != undefined) {
+                rows.push(row)
+            }
         }
-
+        
         return { 'rows': rows, 'cols': this.columns }
     }
 

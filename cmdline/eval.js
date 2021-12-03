@@ -18,50 +18,7 @@ class Evaluator {
     constructor() {
         this.tableMap = {}
     }
-
-    // {                                                                              
-    //     type: 'create',                                                              
-    //     keyword: 'table',                                                            
-    //     temporary: null,                                                             
-    //     if_not_exists: null,                                                         
-    //     table: [ { db: null, table: 'demo' } ],                                      
-    //     ignore_replace: null,                                                        
-    //     as: null,                                                                    
-    //     query_expr: null,                                                            
-    //     create_definitions: [                                                        
-    //       {                                                                          
-    //         column: { type: 'column_ref', table: null, column: 'demo_id' },          
-    //         definition: { dataType: 'INT', suffix: [ 'UNSIGNED' ] },                 
-    //         resource: 'column',                                                      
-    //         auto_increment: 'auto_increment'                                         
-    //       },                                                                         
-    //       {                                                                          
-    //         column: { type: 'column_ref', table: null, column: 'title' },            
-    //         definition: { dataType: 'CHAR', length: 100 },                           
-    //         resource: 'column',                                                      
-    //         nullable: { type: 'not null', value: 'not null' }                        
-    //       },                                                                         
-    //       {                                                                          
-    //         constraint: null,                                                        
-    //         definition: [ 'demo_id' ],                                               
-    //         constraint_type: 'primary key',                                          
-    //         keyword: null,                                                           
-    //         index_type: null,                                                        
-    //         resource: 'constraint',                                                  
-    //         index_options: null                                                      
-    //       },                                                                         
-    //       {                                                                          
-    //         index: 'title_index',                                                    
-    //         definition: [ 'title' ],                                                 
-    //         keyword: 'index',                                                        
-    //         index_type: null,                                                        
-    //         resource: 'index',                                                       
-    //         index_options: null                                                      
-    //       }                                                                          
-    //     ],                                                                           
-    //     table_options: null                                                          
-    //   }                                                                                                                                                                   
-
+                                                                                                                                                          
     getColtype(type) {
         if (type.toLowerCase().search('int') >= 0) {
             return COL_TYPE_INT
@@ -186,83 +143,6 @@ class Evaluator {
         return 'ok'
     }
 
-    // {
-    //     with: null,
-    //     type: 'select',
-    //     options: null,
-    //     distinct: null,
-    //     columns: '*',
-    //     from: [ { db: null, table: 'test', as: null } ],
-    //     where: null,
-    //     groupby: null,
-    //     having: null,
-    //     orderby: null,
-    //     limit: null,
-    //     for_update: null
-    // }
-
-    // {                                                                                    
-    //     with: null,                                                                        
-    //     type: 'select',                                                                    
-    //     options: null,                                                                     
-    //     distinct: null,                                                                    
-    //     columns: [                                                                         
-    //       {                                                                                
-    //         expr: { type: 'column_ref', table: 't', column: 'id' },                        
-    //         as: null                                                                       
-    //       },                                                                               
-    //       {                                                                                
-    //         expr: { type: 'column_ref', table: 't', column: 'name' },                      
-    //         as: null                                                                       
-    //       },                                                                               
-    //       {                                                                                
-    //         expr: { type: 'column_ref', table: 't', column: 'age' },                       
-    //         as: null                                                                       
-    //       },                                                                               
-    //       {                                                                                
-    //         expr: { type: 'column_ref', table: 'd', column: 'demo_id' },                   
-    //         as: null                                                                       
-    //       },                                                                               
-    //       {                                                                                
-    //         expr: { type: 'column_ref', table: 'd', column: 'name' },                      
-    //         as: null                                                                       
-    //       }                                                                                
-    //     ],                       
-
-    //     from: [                                                                            
-    //       { db: null, table: 'test', as: 't' },                                            
-    //       {                                                                                
-    //         db: null,                                                                      
-    //         table: 'demo',                                                                 
-    //         as: 'd',                                                                       
-    //         join: 'LEFT JOIN',                                                             
-    //         on: {                                                                          
-    //           type: 'binary_expr',                                                         
-    //           operator: '=',                                                               
-    //           left: { type: 'column_ref', table: 't', column: 'id' },                      
-    //           right: { type: 'column_ref', table: 'de', column: 'demo_id' }                
-    //         }                                                                              
-    //       }                                                                                
-    //     ],       
-
-    //     where: null,                                                                       
-    //     groupby: null,                                                                     
-    //     having: null,                                                                      
-    //     orderby: null,                                                                     
-    //     limit: null,                                                                       
-    //     for_update: null                                                                   
-    //   }                                                                                    
-
-    // select * from test left join demo on test.id = demo.demo_id;
-    // select  t.id, t.name, t.age, d.demo_id, d.name from test t left join demo d on t.id = de.demo_id;
-
-    // where: {                                                    
-    //     type: 'binary_expr',                                      
-    //     operator: '=',                                            
-    //     left: { type: 'column_ref', table: null, column: 'AID' }, 
-    //     right: { type: 'number', value: 1 }                       
-    //   },                                                          
-
     async evalWhere(ast) {
         let columns = ast.columns
         let from = ast.from
@@ -290,9 +170,10 @@ class Evaluator {
                                 rightVal = rightVal.map(row => row[0])
 
                                 // TODO 如果右值的列上 有索引, 则直接通过右值查询过滤
-                                let rows = await this.tableMap[tableName].table.selectAll() // 通过列过滤
+                                let tbname = from[0].table
+                                let rows = await this.tableMap[tbname].table.selectAllByIndex(leftVal.column, rightVal) // 通过列过滤
 
-                                break
+                                return rows
                         }
 
                         break;
@@ -399,7 +280,7 @@ class Evaluator {
     // 假设orderby 默认以聚簇索引排序, 如果指明了具体的orderby的字段, 则必须在字段上面添加索引!
     async evalSelect(ast, direct = true) {
 
-        console.dir(ast, { depth: null, colors: true })
+        //console.dir(ast, { depth: null, colors: true })
 
         let columns = ast.columns
         let from = ast.from
@@ -420,24 +301,23 @@ class Evaluator {
         let out = []
         if (where != undefined) {
             out = await this.evalWhere(ast)
-            return out
         } else {
             out = await this.evalFrom(ast)
-            let formed = this.dataFormat(out, columns)
-
-            if (direct) { // 返回显示结果
-                let disp = tools.tableDisplayData(formed[0], formed[1])
-                return disp // 返回待显示字符串
-            }
-
-            return formed[1] // 只返回行数据, 不返回列名称
-
         }
 
-        let orderby = ast.orderby
-        let limit = ast.limit
+        let formed = this.dataFormat(out, columns)
+        if (direct) { // 返回显示结果
+            let disp = tools.tableDisplayData(formed[0], formed[1])
+            return disp // 返回待显示字符串
+        }
 
-        return "hello"
+        return formed[1] // 只返回行数据, 不返回列名称
+
+
+        // let orderby = ast.orderby
+        // let limit = ast.limit
+
+        // return "hello"
     }
 
     findColumn(columns, name) {
@@ -449,24 +329,6 @@ class Evaluator {
         }
         return undefined
     }
-
-    // {                                                         
-    //     type: 'insert',                                         
-    //     table: [ { db: null, table: 'test', as: null } ],       
-    //     columns: [ 'AID', 'name', 'age' ],                      
-    //     values: [                                               
-    //       {                                                     
-    //         type: 'expr_list',                                  
-    //         value: [                                            
-    //           { type: 'number', value: 1 },                     
-    //           { type: 'string', value: 'cao' },                 
-    //           { type: 'number', value: 36 }                     
-    //         ]                                                   
-    //       }                                                     
-    //     ],                                                      
-    //     partition: null,                                        
-    //     on_duplicate_update: null                               
-    //   }      
 
 
     // let table = new Table(tbname, [], 500)
@@ -550,7 +412,7 @@ class Evaluator {
 
     }
 
-    
+
 
     async close() {
         for (var name in this.tableMap) {
