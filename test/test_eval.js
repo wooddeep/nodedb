@@ -4,6 +4,7 @@ const Column = require("../table/column")
 const assert = require('assert');
 const { Parser } = require('node-sql-parser');
 const Evaluator = require('../cmdline/eval')
+const cmdline = require('../cmdline/cli')
 const tools = require('../common/tools')
 
 const parser = new Parser();
@@ -44,17 +45,15 @@ async function test1() {
     await table.flush()
     await table.close()
 
-    table = new Table(tbname, [], 500)
-    await table.init()
+    // table = new Table(tbname, [], 500)
+    // await table.init()
 
-    // rows = await table.selectAll()
+    // let ast = parser.astify("select * from test")
+    // let disp = await eval.evalSelect(ast)
 
-    let ast = parser.astify("select * from test")
-    let disp = await eval.evalSelect(ast)
+    // console.log(disp)
 
-    console.log(disp)
-
-    await table.close()
+    // await table.close()
 }
 
 async function test2() {
@@ -72,11 +71,17 @@ async function test3() {
     await eval.close()
 }
 
+async function test4() {
+    //await cmdline.executeOne("show index from")
+    await cmdline.executeOne("select * from test")
+}
+
 
 const funcList = [
     //test1,
     //test2,
-    test3
+    //test3
+    test4
 ]
 
 async function test() {

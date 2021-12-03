@@ -16,6 +16,17 @@ var showTables = new Command(["show", "tables"], async (arr) => {
     return out
 })
 
+
+var showIndex = new Command(["show", "index", "from"], async (arr) => {
+    if (arr.length < 4) {
+        throw new Error(`no table name!`) 
+    }
+    
+    let out = await table.showIndex(arr[3])
+
+    return out
+})
+
 var descTable = new Command(['describe'], async (arr) => {
     if (arr.length < 2) {
         throw new Error(`no table name!`)
@@ -80,7 +91,7 @@ function quit() {
 }
 
 var command = {
-    set: [showTables, descTable],
+    set: [showTables, descTable, showIndex],
     map: {
         'create': create, 'drop': drop, 'desc': descTable,
         'insert': insert, 'select': select, 'quit': quit

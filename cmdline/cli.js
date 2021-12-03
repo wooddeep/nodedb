@@ -151,6 +151,13 @@ const showLog = filepath => {
 };
 
 // start
-init()
 
+init()
 run()
+
+
+const cli = {
+    executeOne: executeOne,
+}
+
+module.exports = cli;

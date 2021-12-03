@@ -116,7 +116,8 @@ class Table {
             let root = await tools.findRoot(path.dirname(module.filename))
             this.tableName = path.join(root, path.basename(this.tableName))
             let ret = await fileops.unlinkFile(this.tableName)
-            await this._index.drop(`${this.namePrefix}.index`)
+            let indexName = path.join(this.namePrefix, 'AID')  // 每个表都需要有个默认的主键索引列AID, TODO: 隐藏该列
+            await this._index.drop(`${indexName}.index`)
         } catch (e) {
             winston.info(e)
         }
@@ -130,7 +131,8 @@ class Table {
             await fileops.createFile(this.tableName)
         }
 
-        await this._index.init(`${this.namePrefix}.index`) // 创建索引文件 TOOD 
+        let indexName = path.join(this.namePrefix, 'AID')  // 每个表都需要有个默认的主键索引列AID, TODO: 隐藏该列
+        await this._index.init(`${indexName}.index`) // 创建索引文件 TOOD 
         this.fileId = await fileops.openFile(this.tableName)
         let stat = await fileops.statFile(this.fileId)
         winston.info("file size = " + stat.size)
@@ -265,6 +267,26 @@ class Table {
         return { 'rows': rows, 'cols': this.columns }
     }
 
+    async selectAllByIndex(key, Val = []) {
+        let max = await this._index.locateMaxLeaf() // 查询到最大数据所在页节点
+        let out = []
+        if (max.type != NODE_TYPE_ROOT) {
+            out = await this._index.selectAll(max) // 查询所有数据
+        }
+
+        let rows = []
+        for (var i = 0; i < out.length; i++) {
+            let value = out[i]
+            let pageIndex = value.readUInt32LE()
+            let slotIndex = value.readUInt16LE(4)
+            let page = await this._buff.getPageNode(pageIndex)
+            let row = page.getRow(slotIndex)
+
+            rows.push(row)
+        }
+
+        return { 'rows': rows, 'cols': this.columns }
+    }
 
     async flush() {
         let pageNum = this._pidx.get() // 页数
@@ -327,7 +349,7 @@ class Table {
         let names = files.map(obj => obj.name)
         let nset = new Set(names)
         let out = names.filter(name => name.search(".data") > 0)
-            .filter(name => nset.has(name.replace(".data", ".index")))
+            //.filter(name => nset.has(name.replace(".data", ".index"))) // TODO: 索引文件放在下一级目录, 通过启发方式过滤
             .map(name => [name.replace(".data", "")])
 
         return tools.tableDisplayData(["Tables"], out)
@@ -367,6 +389,24 @@ class Table {
         }
 
         return tools.tableDisplayData(header, rows)
+    }
+
+    // +-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+    // | Table | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
+    // +-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+    // | test  |          0 | PRIMARY  |            1 | id          | A         |           2 |     NULL | NULL   |      | BTREE      |         |               |
+    // +-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+    async showIndex(tbname) {
+        let root = await tools.findRoot(path.dirname(module.filename))
+        let indexDir = path.join(root, tbname)
+        let files = await tools.readfile(root)
+        let names = files.map(obj => obj.name)
+        let nset = new Set(names)
+        let out = names.filter(name => name.search(".data") > 0)
+            .filter(name => nset.has(name.replace(".data", ".index")))
+            .map(name => [name.replace(".data", "")])
+
+        return tools.tableDisplayData(["Tables"], out)
     }
 
 }

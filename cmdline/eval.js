@@ -288,7 +288,10 @@ class Evaluator {
                         switch (leftType) { // 根据左值类型处理
                             case 'column_ref': // 直接通过索引
                                 rightVal = rightVal.map(row => row[0])
-                                
+
+                                // TODO 如果右值的列上 有索引, 则直接通过右值查询过滤
+                                let rows = await this.tableMap[tableName].table.selectAll() // 通过列过滤
+
                                 break
                         }
 
@@ -373,7 +376,7 @@ class Evaluator {
 
 
         // TODO 优化程序, 直接处理选中的列，无需对所有列进行处理      
-        if (colSel != undefined) {
+        if (colSel != undefined && colSel instanceof Array) {
             let seled = colSel.filter(def => def.expr.type == 'column_ref').map(def => def.expr.column) // TODO 目前只有数据库的列, 需要加上其他列
             let index = []
             for (var i = 0; i < seled.length; i++) {
@@ -546,6 +549,8 @@ class Evaluator {
         }
 
     }
+
+    
 
     async close() {
         for (var name in this.tableMap) {
