@@ -262,9 +262,9 @@ class Table {
             rows.push(row)
         }
 
-
         return { 'rows': rows, 'cols': this.columns }
     }
+
 
     async flush() {
         let pageNum = this._pidx.get() // 页数

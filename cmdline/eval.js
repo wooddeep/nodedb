@@ -281,10 +281,16 @@ class Evaluator {
                         break;
 
                     case 'IN': // 先走全表扫描, 
-                        let leftVal = await this.evalValue(left) // { type: 'column_ref', table: null, column: 'AID' }
+                        let leftVal = await this.evalValue(left)
                         let rightVal = await this.evalValue(right)
                         // 优化器, 分情况讨论 column, expr(column)
-                        let leftType = leftVal.type
+                        let leftType = leftVal.type // { type: 'column_ref', table: null, column: 'AID' }
+                        switch (leftType) { // 根据左值类型处理
+                            case 'column_ref': // 直接通过索引
+                                rightVal = rightVal.map(row => row[0])
+                                
+                                break
+                        }
 
                         break;
 
@@ -318,8 +324,10 @@ class Evaluator {
                 return rows
             }
 
-            if (columns instanceof Array) {
+            if (columns instanceof Array) { // 根据列名查询 某列, 暂时查询所有列, 后期优化
+                let rows = await this.tableMap[tableName].table.selectAll()
 
+                return rows
             }
 
             for (var dbi = 0; dbi < from.length; dbi++) {
@@ -330,8 +338,7 @@ class Evaluator {
 
     }
 
-    dataFormat(out) {
-
+    dataFormat(out, colSel = undefined) {
         let cols = out.cols
         let rows = out.rows
 
@@ -364,12 +371,30 @@ class Evaluator {
             return out
         })
 
+
+        // TODO 优化程序, 直接处理选中的列，无需对所有列进行处理      
+        if (colSel != undefined) {
+            let seled = colSel.filter(def => def.expr.type == 'column_ref').map(def => def.expr.column) // TODO 目前只有数据库的列, 需要加上其他列
+            let index = []
+            for (var i = 0; i < seled.length; i++) {
+                for (var j = 0; j < header.length; j++) {
+                    if (header[j] == seled[i]) {
+                        index.push(j)
+                    }
+                }
+            }
+
+            let selData = data.map(row => { let out = []; index.forEach(i => out.push(row[i])); return out })
+
+            return [seled, selData]
+        }
+
         return [header, data]
     }
 
 
     // 假设orderby 默认以聚簇索引排序, 如果指明了具体的orderby的字段, 则必须在字段上面添加索引!
-    async evalSelect(ast) {
+    async evalSelect(ast, direct = true) {
 
         console.dir(ast, { depth: null, colors: true })
 
@@ -392,17 +417,24 @@ class Evaluator {
         let out = []
         if (where != undefined) {
             out = await this.evalWhere(ast)
+            return out
         } else {
             out = await this.evalFrom(ast)
-            let formed = this.dataFormat(out)
-            let disp = tools.tableDisplayData(formed[0], formed[1])
-            return disp // 返回待显示字符串
+            let formed = this.dataFormat(out, columns)
+
+            if (direct) { // 返回显示结果
+                let disp = tools.tableDisplayData(formed[0], formed[1])
+                return disp // 返回待显示字符串
+            }
+
+            return formed[1] // 只返回行数据, 不返回列名称
+
         }
 
         let orderby = ast.orderby
         let limit = ast.limit
 
-        return "hello" 
+        return "hello"
     }
 
     findColumn(columns, name) {
@@ -492,19 +524,21 @@ class Evaluator {
                 return ast
 
             case 'expr_list':
-                let out = []
+                var out = []
                 let value = ast.value
                 for (var i = 0; i < value.length; i++) {
                     let val = value[i]
                     let ret = await this.evalValue(val)
                     if (ret instanceof Array) {
                         out.push(...ret) // 数组解构
+                    } else {
+                        out.push(ret)
                     }
                 }
                 return out
 
             case 'select':
-                out = await this.evalSelect(ast)
+                var out = await this.evalSelect(ast, false)
                 return out
 
             default:
@@ -516,7 +550,7 @@ class Evaluator {
     async close() {
         for (var name in this.tableMap) {
             var table = this.tableMap[name].table
-            await table.flush()
+            //await table.flush()
             await table.close()
         }
     }
