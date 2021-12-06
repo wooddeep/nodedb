@@ -18,7 +18,7 @@ class Evaluator {
     constructor() {
         this.tableMap = {}
     }
-                                                                                                                                                          
+
     getColtype(type) {
         if (type.toLowerCase().search('int') >= 0) {
             return COL_TYPE_INT
@@ -143,6 +143,48 @@ class Evaluator {
         return 'ok'
     }
 
+
+    // {                                                                   
+    //     with: null,                                                       
+    //     type: 'select',                                                   
+    //     options: null,                                                    
+    //     distinct: null,                                                   
+    //     columns: '*',                                                     
+    //     from: [ { db: null, table: 'test', as: null } ],                  
+    //     where: {                                                          
+    //       type: 'binary_expr',                                            
+    //       operator: '>',                                                  
+    //       left: { type: 'number', value: 2 },                             
+    //       right: { type: 'column_ref', table: null, column: 'AID' }       
+    //     },                                                                
+    //     groupby: null,                                                    
+    //     having: null,                                                     
+    //     orderby: null,                                                    
+    //     limit: null,                                                      
+    //     for_update: null                                                  
+    //   }                                                                       
+    async evalCompareExpr(tbname, oper, leftVal, rightVal) {
+        if (leftVal.type == 'column_ref' && rightVal.type == 'column_ref') { // 对比的值都是数据库的列
+            return [] // TODO 
+        }
+
+        if (leftVal.type == 'column_ref' && rightVal.type != 'column_ref') { // 左值都是数据库的列
+            var cv = await this.evalValue(rightVal)
+            var col = leftVal.column
+            let rows = await this.tableMap[tbname].table.selectAllByColComp(col, oper, cv) // 通过列过滤
+            return rows
+        }
+
+        if (leftVal.type != 'column_ref' && rightVal.type == 'column_ref') { // 对比的值都是数据库的列
+            return [] // TODO
+        }
+
+        if (leftVal.type != 'column_ref' && rightVal.type != 'column_ref') { // 对比的值都不是数据库的列
+            return [] // TODO
+        }
+
+    }
+
     async evalWhere(ast) {
         let columns = ast.columns
         let from = ast.from
@@ -156,23 +198,24 @@ class Evaluator {
                 let right = where.right
                 let oper = where.operator
 
+                let leftVal = await this.evalValue(left)
+                let rightVal = await this.evalValue(right)
+                let tbname = from[0].table
+
                 switch (oper) {
-                    case '=':
-                        break;
+                    case oper.match(/[=\>\<]|!=|>=|<=/)?.input: // 对比运算
+                        console.dir(ast, { depth: null, colors: true })
+                        let rows = await this.evalCompareExpr(tbname, oper, leftVal, rightVal) // 通过列过滤
+                        return rows
 
                     case 'IN': // 先走全表扫描, 
-                        let leftVal = await this.evalValue(left)
-                        let rightVal = await this.evalValue(right)
                         // 优化器, 分情况讨论 column, expr(column)
                         let leftType = leftVal.type // { type: 'column_ref', table: null, column: 'AID' }
                         switch (leftType) { // 根据左值类型处理
                             case 'column_ref': // 直接通过索引
                                 rightVal = rightVal.map(row => row[0])
-
                                 // TODO 如果右值的列上 有索引, 则直接通过右值查询过滤
-                                let tbname = from[0].table
                                 let rows = await this.tableMap[tbname].table.selectAllByIndex(leftVal.column, rightVal) // 通过列过滤
-
                                 return rows
                         }
 
@@ -405,6 +448,9 @@ class Evaluator {
             case 'select':
                 var out = await this.evalSelect(ast, false)
                 return out
+
+            case 'number': // { type: 'number', value: 2 },  
+                return ast // 直接返回 { type: 'number', value: 2 }
 
             default:
                 break

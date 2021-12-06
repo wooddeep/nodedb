@@ -246,11 +246,10 @@ class Table {
     }
 
     /*
-     * 根据加索引的名称来, TODO 多索引的情况
+     * 根据加索引的名称来, TODO 多索引的情况，根据列名获取索引信息
      */
-    async selectByIndex(keyName, keyValue) {
-
-        let kbuf = tools.buffer(keyValue)
+    async selectByIndex(colName, colValue) {
+        let kbuf = tools.buffer(colValue)
         let value = await this._index.select(kbuf) // TODO 多索引的情况
         if (value == undefined) return undefined
 
@@ -263,6 +262,45 @@ class Table {
         let row = page.getRow(slotIndex)
 
         return row
+    }
+
+
+    /*
+     * 通过列值对比查询满足条件的所有项, TODO 根据列名获取索引信息
+     */
+    async selectAllByColComp(colName, oper, colValue) {
+
+        var out = []
+
+        if (oper == '>') {
+            out =  await this._index.selectGt(colValue)
+        }
+
+        if (oper == '>=') {
+            out =  await this._index.selectGe(colValue)
+        }
+
+        if (oper == '<') {
+            out =  await this._index.selectLt(colValue)
+        }
+
+        if (oper == '<=') {
+            out =  await this._index.selectLe(colValue)
+        }
+
+        let rows = []
+        for (var i = 0; i < out.length; i++) {
+            let value = out[i]
+            let pageIndex = value.readUInt32LE()
+            let slotIndex = value.readUInt16LE(4)
+            let page = await this._buff.getPageNode(pageIndex)
+            let row = page.getRow(slotIndex)
+
+            rows.push(row)
+        }
+
+        return { 'rows': rows, 'cols': this.columns }
+
     }
 
     async selectAll(colNames = undefined) {
@@ -297,7 +335,7 @@ class Table {
                 rows.push(row)
             }
         }
-        
+
         return { 'rows': rows, 'cols': this.columns }
     }
 

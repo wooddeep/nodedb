@@ -312,10 +312,44 @@ class Bptree {
         return this.locateMaxLeaf(child)
     }
 
+    async locateMinLeaf(page = this.rootPage) {
+        if (page.type == NODE_TYPE_LEAF) {
+            return page
+        }
+
+        let childIndex = page.cells[page.cells.length - page.used].index
+        if (childIndex == 0) { // 还没有数据页
+            return page
+        }
+
+        let child = await this._buff.getPageNode(childIndex, false)
+        return this.locateMinLeaf(child)
+    }
+
+    async maxVal() {
+        let page = await this.locateMaxLeaf()
+        return page.cells[page.cells.length - 1].index
+    }
+
+    async minVal() {
+        let page = await this.locateMinLeaf()
+        return page.cells[page.cells.length - page.used].index
+    }
+
+    async maxKey() {
+        let page = await this.locateMaxLeaf()
+        return page.cells[page.cells.length - 1].key
+    }
+
+    async minKey() {
+        let page = await this.locateMinLeaf()
+        return page.cells[page.cells.length - page.used].key
+    }
+
     async selectAll(maxPage) {
         let out = []
         let page = maxPage
-        let prev =  page.prev
+        let prev = page.prev
         do {
             prev = page.prev
             for (var index = this.ORDER_NUM - 1; index >= this.ORDER_NUM - page.used; index--) {
@@ -380,6 +414,22 @@ class Bptree {
 
         return VAL_TYPE_UNK
     }
+
+
+    value(value, type) {
+        if (type == VAL_TYPE_STR) {
+            return value.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+        }
+
+        if (type == VAL_TYPE_NUM) {
+            return value.readInt32LE()
+        }
+
+        if (type == VAL_TYPE_FPN) {
+            return value.readFloatLE()
+        }
+    }
+
 
     /*
      * 如果targetPage的type为叶节点，则value代表具体值，如果type非叶子节点，则value则为子节点索引
@@ -539,6 +589,16 @@ class Bptree {
         }
     }
 
+    /*
+     * @description: 寻找包含目标值的页
+     */
+    async findHoldPage(key) {
+        let kbuf = tools.buffer(key)
+        let targetPage = await this.locateLeaf(kbuf, this.rootPage, LOC_FOR_SELECT) // 目标叶子节点
+        return targetPage
+    }
+
+
     async select(key) {
         let targetPage = await this.locateLeaf(key, this.rootPage, LOC_FOR_SELECT) // 目标叶子节点
         for (var i = this.ORDER_NUM - 1; i >= 0; i--) {
@@ -559,6 +619,104 @@ class Bptree {
         }
         return undefined
     }
+
+
+    async selectGt(start) {
+        let maxKeyPage = await this.locateMaxLeaf()
+        let type = this.valueType(start.value)
+
+        var maxVal = undefined
+
+        if (type == VAL_TYPE_NUM) {
+            maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.readInt32LE()
+            start = parseInt(start.value)
+        }
+        if (type == VAL_TYPE_FPN) {
+            maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.readFloatLE()
+            start = parseFloat(start.value)
+        }
+        if (type == VAL_TYPE_STR) {
+            maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+        }
+
+        if (start >= maxVal) {
+            return []
+        }
+
+        var out = [], flag = false, value = undefined
+        let kbuf = tools.buffer(start)
+        var startPage = await this.findHoldPage(kbuf)
+        for (var pageIndex = startPage.index; pageIndex != undefined && pageIndex > 0;) {
+            var page = await this._buff.getPageNode(pageIndex, false)
+            for (var cellIndex = this.ORDER_NUM - page.used; cellIndex < this.ORDER_NUM; cellIndex++) {
+                if (flag == false) {
+                    value = this.value(page.cells[cellIndex].key, type)
+                }
+
+                if ((value != undefined && value > start ) || flag == true) {
+                    out.push(page.cells[cellIndex].index)
+                    flag = true
+                }
+            }
+            pageIndex = page.next
+            
+        }
+
+        return out
+    }
+
+    async selectGe(start) {
+        let maxKeyPage = await this.locateMaxLeaf()
+        let type = this.valueType(start.value)
+
+        var maxVal = undefined
+
+        if (type == VAL_TYPE_NUM) {
+            maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.readInt32LE()
+            start = parseInt(start.value)
+        }
+        if (type == VAL_TYPE_FPN) {
+            maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.readFloatLE()
+            start = parseFloat(start.value)
+        }
+        if (type == VAL_TYPE_STR) {
+            maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+        }
+
+        if (start >= maxVal) {
+            return []
+        }
+
+        var out = [], flag = false, value = undefined
+        let kbuf = tools.buffer(start)
+        var startPage = await this.findHoldPage(kbuf)
+        for (var pageIndex = startPage.index; pageIndex != undefined && pageIndex > 0;) {
+            var page = await this._buff.getPageNode(pageIndex, false)
+            for (var cellIndex = this.ORDER_NUM - page.used; cellIndex < this.ORDER_NUM; cellIndex++) {
+                if (flag == false) {
+                    value = this.value(page.cells[cellIndex].key, type)
+                }
+
+                if ((value != undefined && value >= start) || flag == true) {
+                    out.push(page.cells[cellIndex].index)
+                    flag = true
+                }
+            }
+            pageIndex = page.next
+            
+        }
+
+        return out
+    }
+
+    async selectLt(start) {
+
+    }
+
+    async selectLe(start) {
+
+    }
+
 
     /*
      * 判断是否需要与兄弟节点进行合并，或者从兄弟节点借数

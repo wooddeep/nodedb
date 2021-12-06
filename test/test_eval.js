@@ -73,15 +73,15 @@ async function test3() {
 
 async function test4() {
     //await cmdline.executeOne("show index from")
-    await cmdline.executeOne("select * from test")
+    await cmdline.executeOne("select * from test where AID >= 1")
 }
 
 
 const funcList = [
     //test1,
     //test2,
-    test3
-    //test4
+    //test3
+    test4
 ]
 
 async function test() {
