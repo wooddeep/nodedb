@@ -3,6 +3,35 @@ const constant = require("./const.js");
 const path = require('path')
 const fs = require("fs")
 
+const {
+    START_OFFSET,
+    KEY_MAX_LEN,
+    VAL_TYPE_LEN,
+    VAL_IDX_LEN,
+    PAGE_SIZE,
+    HEAD_LEN,
+    NODE_TYPE_LEAF,
+    NODE_TYPE_STEM,
+    NODE_TYPE_ROOT,
+    NODE_TYPE_FREE,
+    LOC_FOR_INSERT,
+    LOC_FOR_SELECT,
+    LOC_FOR_DELETE,
+    TRANS_MERGE,
+    TRANS_BORROW,
+    TRANS_SHRINK,
+    VAL_TYPE_IDX,
+    VAL_TYPE_NUM,
+    VAL_TYPE_STR,
+    VAL_TYPE_FPN,
+    VAL_TYPE_OBJ,
+    VAL_TYPE_UNK,
+    COL_TYPE_INT,
+    COL_TYPE_FPN,
+    COL_TYPE_STR,
+} = require("./const.js")
+
+
 function buffer(key) {
     let buffer = Buffer.alloc(constant.KEY_MAX_LEN)
     buffer.fill(0)
@@ -121,6 +150,48 @@ function tableDisplayData(header, rows, coldef = undefined) {
     return sb.toString()
 }
 
+
+/*
+ * b+树索引 kv 中, v的类型
+ */
+function bptreeValType(value) {
+    if (typeof (value) == 'object') {
+        return VAL_TYPE_OBJ
+    }
+
+    if (typeof (value) == 'number') {
+        if (Number.isInteger(value)) {
+            return VAL_TYPE_NUM
+        } else {
+            return VAL_TYPE_FPN
+        }
+    }
+
+    if (typeof (value) == 'string') {
+        return VAL_TYPE_STR
+    }
+
+    return VAL_TYPE_UNK
+}
+
+
+/*
+ * 根据数据库列的类型求值
+ */
+function tableColValue(value, type) {
+    if (type == COL_TYPE_STR) {
+        return value.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+    }
+
+    if (type == COL_TYPE_INT) {
+        return value.readInt32LE()
+    }
+
+    if (type == COL_TYPE_FPN) {
+        return value.readFloatLE()
+    }
+}
+
 const tools = {
     buffer: buffer,
     int32le: int32le,
@@ -128,6 +199,8 @@ const tools = {
     readdir: readdir,
     readfile: readfile,
     tableDisplayData: tableDisplayData,
+    bptreeValType: bptreeValType,
+    tableColValue: tableColValue,
 }
 
 module.exports = tools;

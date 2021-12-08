@@ -52,6 +52,9 @@ const {
     VAL_TYPE_FPN,
     VAL_TYPE_OBJ,
     VAL_TYPE_UNK,
+    COL_TYPE_INT,
+    COL_TYPE_FPN,
+    COL_TYPE_STR,
 } = require("../common/const.js")
 
 const winston = require('../winston/config')
@@ -394,42 +397,6 @@ class Bptree {
         }
     }
 
-    valueType(value) {
-
-        if (typeof (value) == 'object') {
-            return VAL_TYPE_OBJ
-        }
-
-        if (typeof (value) == 'number') {
-            if (Number.isInteger(value)) {
-                return VAL_TYPE_NUM
-            } else {
-                return VAL_TYPE_FPN
-            }
-        }
-
-        if (typeof (value) == 'string') {
-            return VAL_TYPE_STR
-        }
-
-        return VAL_TYPE_UNK
-    }
-
-
-    value(value, type) {
-        if (type == VAL_TYPE_STR) {
-            return value.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
-        }
-
-        if (type == VAL_TYPE_NUM) {
-            return value.readInt32LE()
-        }
-
-        if (type == VAL_TYPE_FPN) {
-            return value.readFloatLE()
-        }
-    }
-
 
     /*
      * 如果targetPage的type为叶节点，则value代表具体值，如果type非叶子节点，则value则为子节点索引
@@ -441,7 +408,7 @@ class Bptree {
             pos = this.findInsertPos(key, targetPage) // 找到插入的cell槽位
         }
 
-        let valType = targetPage.type == NODE_TYPE_LEAF ? this.valueType(value) : VAL_TYPE_IDX
+        let valType = targetPage.type == NODE_TYPE_LEAF ? tools.bptreeValType(value) : VAL_TYPE_IDX
         targetPage.cells.splice(pos, 0, this._page.newCell(key, value, valType)) //  插入：splice(pos, <delete num> , value)
 
         targetPage.used++
@@ -620,26 +587,28 @@ class Bptree {
         return undefined
     }
 
-
-    async selectGt(start) {
+    async selectGreat(start, type, equal = false) {
         let maxKeyPage = await this.locateMaxLeaf()
-        let type = this.valueType(start.value)
 
         var maxVal = undefined
 
-        if (type == VAL_TYPE_NUM) {
+        if (type == COL_TYPE_INT) {
             maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.readInt32LE()
-            start = parseInt(start.value)
+            start = parseInt(start)
         }
-        if (type == VAL_TYPE_FPN) {
+        if (type == COL_TYPE_FPN) {
             maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.readFloatLE()
-            start = parseFloat(start.value)
+            start = parseFloat(start)
         }
-        if (type == VAL_TYPE_STR) {
+        if (type == COL_TYPE_STR) {
             maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
         }
 
-        if (start >= maxVal) {
+        if (start >= maxVal && equal == false) {
+            return []
+        }
+
+        if (start > maxVal && equal == true) {
             return []
         }
 
@@ -650,40 +619,44 @@ class Bptree {
             var page = await this._buff.getPageNode(pageIndex, false)
             for (var cellIndex = this.ORDER_NUM - page.used; cellIndex < this.ORDER_NUM; cellIndex++) {
                 if (flag == false) {
-                    value = this.value(page.cells[cellIndex].key, type)
+                    value = tools.tableColValue(page.cells[cellIndex].key, type)
                 }
 
-                if ((value != undefined && value > start ) || flag == true) {
+                if ((value != undefined && ((value > start && equal == false) || (value >= start && equal == true))) || flag == true) {
                     out.push(page.cells[cellIndex].index)
                     flag = true
                 }
             }
             pageIndex = page.next
-            
+
         }
 
         return out
     }
 
-    async selectGe(start) {
-        let maxKeyPage = await this.locateMaxLeaf()
-        let type = this.valueType(start.value)
 
-        var maxVal = undefined
+    async selectLittle(start, type, equal = false) {
+        let minKeyPage = await this.locateMinLeaf()
 
-        if (type == VAL_TYPE_NUM) {
-            maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.readInt32LE()
-            start = parseInt(start.value)
+        var minVal = undefined
+
+        if (type == COL_TYPE_INT) {
+            minVal = minKeyPage.cells[this.ORDER_NUM - minKeyPage.used].key.readInt32LE()
+            start = parseInt(start)
         }
-        if (type == VAL_TYPE_FPN) {
-            maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.readFloatLE()
-            start = parseFloat(start.value)
+        if (type == COL_TYPE_FPN) {
+            minVal = minKeyPage.cells[this.ORDER_NUM - minKeyPage.used].key.readFloatLE()
+            start = parseFloat(start)
         }
-        if (type == VAL_TYPE_STR) {
-            maxVal = maxKeyPage.cells[this.ORDER_NUM - 1].key.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+        if (type == COL_TYPE_STR) {
+            minVal = minKeyPage.cells[this.ORDER_NUM - minKeyPage.used].key.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
         }
 
-        if (start >= maxVal) {
+        if (start <= minVal && equal == false) {
+            return []
+        }
+
+        if (start < minVal && equal == true) {
             return []
         }
 
@@ -692,29 +665,39 @@ class Bptree {
         var startPage = await this.findHoldPage(kbuf)
         for (var pageIndex = startPage.index; pageIndex != undefined && pageIndex > 0;) {
             var page = await this._buff.getPageNode(pageIndex, false)
-            for (var cellIndex = this.ORDER_NUM - page.used; cellIndex < this.ORDER_NUM; cellIndex++) {
+            for (var cellIndex = this.ORDER_NUM - 1; cellIndex >= this.ORDER_NUM - page.used; cellIndex--) {
                 if (flag == false) {
-                    value = this.value(page.cells[cellIndex].key, type)
+                    value = tools.tableColValue(page.cells[cellIndex].key, type)
                 }
 
-                if ((value != undefined && value >= start) || flag == true) {
+                if ((value != undefined && ((value < start && equal == false) || (value <= start && equal == true))) || flag == true) {
                     out.push(page.cells[cellIndex].index)
                     flag = true
                 }
             }
-            pageIndex = page.next
-            
+            pageIndex = page.prev
+
         }
 
         return out
     }
 
-    async selectLt(start) {
+    async selectEqual(start, type) {
 
-    }
+        var out = [], value = undefined
+        let kbuf = tools.buffer(start)
+        var page = await this.findHoldPage(kbuf)
 
-    async selectLe(start) {
+        for (var cellIndex = this.ORDER_NUM - page.used; cellIndex < this.ORDER_NUM; cellIndex++) {
+            value = tools.tableColValue(page.cells[cellIndex].key, type)
 
+            if (value == start) {
+                out.push(page.cells[cellIndex].index)
+            }
+
+        }
+
+        return out
     }
 
 

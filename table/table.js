@@ -265,27 +265,39 @@ class Table {
     }
 
 
+    getColTypeByName(colName) {
+        let type = this.columns.filter(col => col.getFieldName() == colName)[0].type
+        return type
+    }
+
+
     /*
      * 通过列值对比查询满足条件的所有项, TODO 根据列名获取索引信息
      */
     async selectAllByColComp(colName, oper, colValue) {
-
         var out = []
 
+        let type = this.getColTypeByName(colName)
+
         if (oper == '>') {
-            out =  await this._index.selectGt(colValue)
+            out =  await this._index.selectGreat(colValue, type)
         }
 
         if (oper == '>=') {
-            out =  await this._index.selectGe(colValue)
+            this.columns
+            out =  await this._index.selectGreat(colValue, type, true)
         }
 
         if (oper == '<') {
-            out =  await this._index.selectLt(colValue)
+            out =  await this._index.selectLittle(colValue, type)
         }
 
         if (oper == '<=') {
-            out =  await this._index.selectLe(colValue)
+            out =  await this._index.selectLittle(colValue, type, true)
+        }
+
+        if (oper == '=') {
+            out =  await this._index.selectEqual(colValue, type)
         }
 
         let rows = []

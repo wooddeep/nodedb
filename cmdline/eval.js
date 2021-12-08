@@ -5,8 +5,8 @@ const path = require('path')
 
 const {
     COL_TYPE_INT,
-    COL_TYPE_FLOAT,
-    COL_TYPE_STRING,
+    COL_TYPE_FPN,
+    COL_TYPE_STR,
     KEY_TYPE_NULL,
     KEY_TYPE_PRIMARY,
     KEY_TYPE_INDEX,
@@ -25,11 +25,11 @@ class Evaluator {
         }
 
         if (type.toLowerCase().search('float') >= 0) { // 辅助定义
-            return COL_TYPE_FLOAT
+            return COL_TYPE_FPN
         }
 
         if (type.toLowerCase().search('char') >= 0) { // 辅助定义
-            return COL_TYPE_STRING
+            return COL_TYPE_STR
         }
     }
 
@@ -64,7 +64,7 @@ class Evaluator {
                 let type = this.getColtype(def.definition.dataType) // INT, CHAR
 
                 let typeAux = undefined
-                if (type == COL_TYPE_STRING) { // 辅助定义
+                if (type == COL_TYPE_STR) { // 辅助定义
                     typeAux = def.definition.length
                 }
 
@@ -169,9 +169,17 @@ class Evaluator {
         }
 
         if (leftVal.type == 'column_ref' && rightVal.type != 'column_ref') { // 左值都是数据库的列
-            var cv = await this.evalValue(rightVal)
+            var compValue = await this.evalValue(rightVal) // 右值为待比较值
+            if (compValue instanceof Array) {
+                if (compValue.length > 1) {
+                    throw new Error(`be compared value is not a single value!`)
+                } else {
+                    compValue = compValue[0]
+                }
+            }
+
             var col = leftVal.column
-            let rows = await this.tableMap[tbname].table.selectAllByColComp(col, oper, cv) // 通过列过滤
+            let rows = await this.tableMap[tbname].table.selectAllByColComp(col, oper, compValue) // 通过列过滤
             return rows
         }
 
@@ -200,12 +208,13 @@ class Evaluator {
 
                 let leftVal = await this.evalValue(left)
                 let rightVal = await this.evalValue(right)
+
                 let tbname = from[0].table
 
                 switch (oper) {
                     case oper.match(/[=\>\<]|!=|>=|<=/)?.input: // 对比运算
                         console.dir(ast, { depth: null, colors: true })
-                        let rows = await this.evalCompareExpr(tbname, oper, leftVal, rightVal) // 通过列过滤
+                        let rows = await this.evalCompareExpr(tbname, oper, leftVal, rightVal) // 通过列过滤, TODO 
                         return rows
 
                     case 'IN': // 先走全表扫描, 
@@ -450,10 +459,13 @@ class Evaluator {
                 return out
 
             case 'number': // { type: 'number', value: 2 },  
-                return ast // 直接返回 { type: 'number', value: 2 }
+                return ast.value // 直接返回 { type: 'number', value: 2 }
+
+            case 'single_quote_string': // { type: 'number', value: 2 },  
+                return ast.value // 直接返回 { type: 'number', value: 2 }
 
             default:
-                break
+                return ast
         }
 
     }

@@ -141,8 +141,8 @@ const BIT_MAP_OFFSET = DATA_TYPE_OFFSET + DATA_TYPE_LEN
 
 // 数据表列的定义 0 ~ int, 1 ~ float, 2 ~ string
 const COL_TYPE_INT = 0
-const COL_TYPE_FLOAT = 1
-const COL_TYPE_STRING = 2
+const COL_TYPE_FPN = 1
+const COL_TYPE_STR = 2
 
 // 键的定义 0 ~ null, 1 ~ primary key, 2 ~ unique key, 3 ~ key
 const KEY_TYPE_NULL = 0
@@ -212,8 +212,8 @@ var constant = {
 
     // 表的相关定义
     COL_TYPE_INT: COL_TYPE_INT,
-    COL_TYPE_FLOAT: COL_TYPE_FLOAT,
-    COL_TYPE_STRING: COL_TYPE_STRING,
+    COL_TYPE_FPN: COL_TYPE_FPN,
+    COL_TYPE_STR: COL_TYPE_STR,
     KEY_TYPE_NULL: KEY_TYPE_NULL,
     KEY_TYPE_PRIMARY: KEY_TYPE_PRIMARY,
     KEY_TYPE_UNIQUE: KEY_TYPE_UNIQUE,

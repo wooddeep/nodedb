@@ -64,7 +64,7 @@ async function test2() {
 }
 
 async function test3() {
-    let ast = parser.astify("select * from test where AID in (select age from test)") //"select * from test where AID in (select AID from test)"
+    let ast = parser.astify("select * from test where AID in (select AID from test)") //"select * from test where AID in (select AID from test)"
     //let ast = parser.astify("select AID, name from test") //"select * from test where AID in (select AID from test)"
     let disp = await eval.evalSelect(ast)
     console.log(disp)
@@ -73,7 +73,9 @@ async function test3() {
 
 async function test4() {
     //await cmdline.executeOne("show index from")
-    await cmdline.executeOne("select * from test where AID >= 1")
+    //await cmdline.executeOne("select * from test where AID > (select AID from test where AID = 1)")
+
+    await cmdline.executeOne("select * from test where AID = 1")
 }
 
 
