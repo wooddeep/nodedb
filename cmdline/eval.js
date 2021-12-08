@@ -222,7 +222,10 @@ class Evaluator {
                         let leftType = leftVal.type // { type: 'column_ref', table: null, column: 'AID' }
                         switch (leftType) { // 根据左值类型处理
                             case 'column_ref': // 直接通过索引
-                                rightVal = rightVal.map(row => row[0])
+                                if (typeof (rightVal[0]) == 'object') { // 如果集合是select出来的集合，非直接数值的集合，首先转换
+                                    rightVal = rightVal.map(row => row[0])
+                                }
+
                                 // TODO 如果右值的列上 有索引, 则直接通过右值查询过滤
                                 let rows = await this.tableMap[tbname].table.selectAllByIndex(leftVal.column, rightVal) // 通过列过滤
                                 return rows
