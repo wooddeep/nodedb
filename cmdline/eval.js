@@ -165,7 +165,7 @@ class Evaluator {
     //   }                                                                       
     async evalCompareExpr(tbname, oper, leftVal, rightVal) {
         if (leftVal.type == 'column_ref' && rightVal.type == 'column_ref') { // 对比的值都是数据库的列
-            return [] // TODO 
+            return {} // TODO 
         }
 
         if (leftVal.type == 'column_ref' && rightVal.type != 'column_ref') { // 左值都是数据库的列
@@ -184,11 +184,33 @@ class Evaluator {
         }
 
         if (leftVal.type != 'column_ref' && rightVal.type == 'column_ref') { // 对比的值都是数据库的列
-            return [] // TODO
+            return {} // TODO
         }
 
         if (leftVal.type != 'column_ref' && rightVal.type != 'column_ref') { // 对比的值都不是数据库的列
-            return [] // TODO
+            return {} // TODO
+        }
+
+    }
+
+    async evalLogicExpr(from, columns, oper, left, right) {
+
+        switch (oper) {
+            case oper.match(/and/i)?.input:
+                var rows = left.rows.filter(lrow => right.rows.filter(rrow => lrow.slice(0, 4).compare(rrow.slice(0, 4)) == 0))
+                return { 'cols': left.cols, 'rows': rows }
+
+            case oper.match(/or/i)?.input:
+                var rows = left.rows.forEach(lrow => {
+                    if (right.rows.find(rrow => lrow.slice(0, 4).compare(rrow.slice(0, 4)) == 0) == undefined) { // 找不到
+                        right.rows.push(lrow)
+                    }
+                })
+                
+                return { 'cols': left.cols, 'rows': right.rows }
+
+            default:
+                return {}
         }
 
     }
@@ -197,54 +219,12 @@ class Evaluator {
         let columns = ast.columns
         let from = ast.from
         let where = ast.where
-        let type = where.type
 
+        // 把from 和 columns字段移入到where之中
+        //where.from = from
+        //where.columns = columns
 
-        switch (type) {
-            case 'binary_expr':
-                let left = where.left
-                let right = where.right
-                let oper = where.operator
-
-                let leftVal = await this.evalValue(left)
-                let rightVal = await this.evalValue(right)
-
-                let tbname = from[0].table
-
-                switch (oper) {
-                    case oper.match(/[=\>\<]|!=|>=|<=/)?.input: // 对比运算
-                        console.dir(ast, { depth: null, colors: true })
-                        let rows = await this.evalCompareExpr(tbname, oper, leftVal, rightVal) // 通过列过滤, TODO 
-                        return rows
-
-                    case 'IN': // 先走全表扫描, 
-                        // 优化器, 分情况讨论 column, expr(column)
-                        let leftType = leftVal.type // { type: 'column_ref', table: null, column: 'AID' }
-                        switch (leftType) { // 根据左值类型处理
-                            case 'column_ref': // 直接通过索引
-                                if (typeof (rightVal[0]) == 'object') { // 如果集合是select出来的集合，非直接数值的集合，首先转换
-                                    rightVal = rightVal.map(row => row[0])
-                                }
-
-                                // TODO 如果右值的列上 有索引, 则直接通过右值查询过滤
-                                let rows = await this.tableMap[tbname].table.selectAllByIndex(leftVal.column, rightVal) // 通过列过滤
-                                return rows
-                        }
-
-                        break;
-
-                    default:
-                        break;
-                }
-
-                break;
-
-            default:
-                break;
-        }
-
-
-        console.dir(ast, { depth: null, colors: true })
+        return await this.evalValue(where, from, columns)
     }
 
     //console.dir(from, { depth: null, colors: true })
@@ -437,9 +417,54 @@ class Evaluator {
     }
 
 
-    async evalValue(ast) {
+    async evalValue(ast, from = undefined, columns = undefined) {
         let type = ast.type
+
         switch (type) {
+
+            case 'binary_expr':
+                let left = ast.left
+                let right = ast.right
+                let oper = ast.operator
+
+                let leftVal = await this.evalValue(left, from)
+                let rightVal = await this.evalValue(right, from)
+
+                let tbname = from == undefined ? undefined : from[0].table
+
+                switch (oper) {
+                    case oper.match(/[=\>\<]|!=|>=|<=/)?.input: // 对比运算
+                        //console.dir(ast, { depth: null, colors: true })
+                        var rows = await this.evalCompareExpr(tbname, oper, leftVal, rightVal) // 通过列过滤, TODO 
+                        return rows
+
+                    case oper.match(/AND|OR|and|or/)?.input: // 逻辑运算
+                        console.dir(ast, { depth: null, colors: true })
+                        var rows = await this.evalLogicExpr(from, columns, oper, leftVal, rightVal) // 通过列过滤, TODO 
+                        return rows
+
+                    case 'IN': // 先走全表扫描, 
+                        // 优化器, 分情况讨论 column, expr(column)
+                        let leftType = leftVal.type // { type: 'column_ref', table: null, column: 'AID' }
+                        switch (leftType) { // 根据左值类型处理
+                            case 'column_ref': // 直接通过索引
+                                if (typeof (rightVal[0]) == 'object') { // 如果集合是select出来的集合，非直接数值的集合，首先转换
+                                    rightVal = rightVal.map(row => row[0])
+                                }
+
+                                // TODO 如果右值的列上 有索引, 则直接通过右值查询过滤
+                                var rows = await this.tableMap[tbname].table.selectAllByIndex(leftVal.column, rightVal) // 通过列过滤
+                                return rows
+                        }
+
+                        break;
+
+                    default:
+                        break;
+                }
+
+                break;
+
             case 'column_ref': //   { type: 'column_ref', table: null, column: 'AID' },
                 return ast
 

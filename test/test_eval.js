@@ -76,7 +76,9 @@ async function test4() {
     //await cmdline.executeOne("select * from test where AID > (select AID from test where AID = 1)")
 
     //await cmdline.executeOne("select * from test where AID = 1")
-    await cmdline.executeOne("select * from test where AID in (1,20)")
+    //await cmdline.executeOne("select * from test where AID <= 2")
+    
+    await cmdline.executeOne("select * from test where AID >=1 and age = 38")
 }
 
 
