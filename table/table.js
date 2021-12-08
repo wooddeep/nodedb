@@ -280,24 +280,24 @@ class Table {
         let type = this.getColTypeByName(colName)
 
         if (oper == '>') {
-            out =  await this._index.selectGreat(colValue, type)
+            out = await this._index.selectGreat(colValue, type)
         }
 
         if (oper == '>=') {
             this.columns
-            out =  await this._index.selectGreat(colValue, type, true)
+            out = await this._index.selectGreat(colValue, type, true)
         }
 
         if (oper == '<') {
-            out =  await this._index.selectLittle(colValue, type)
+            out = await this._index.selectLittle(colValue, type)
         }
 
         if (oper == '<=') {
-            out =  await this._index.selectLittle(colValue, type, true)
+            out = await this._index.selectLittle(colValue, type, true)
         }
 
         if (oper == '=') {
-            out =  await this._index.selectEqual(colValue, type)
+            out = await this._index.selectEqual(colValue, type)
         }
 
         let rows = []
@@ -459,17 +459,30 @@ class Table {
     // +-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
     // | test  |          0 | PRIMARY  |            1 | id          | A         |           2 |     NULL | NULL   |      | BTREE      |         |               |
     // +-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
-    async showIndex(tbname) {
-        let root = await tools.findRoot(path.dirname(module.filename))
-        let indexDir = path.join(root, tbname)
-        let files = await tools.readfile(root)
-        let names = files.map(obj => obj.name)
-        let nset = new Set(names)
-        let out = names.filter(name => name.search(".data") > 0)
-            .filter(name => nset.has(name.replace(".data", ".index")))
-            .map(name => [name.replace(".data", "")])
+    async showIndex() {
+        //let root = await tools.findRoot(path.dirname(module.filename))
+        //let indexDir = path.join(root, tbname)
+        //let files = await tools.readfile(indexDir)
+        //let names = files.map(obj => obj.name)
+        //let out = names.filter(name => name.indexOf('.index') > 0).map(name => name.replace(/\.index/, ''))
 
-        return tools.tableDisplayData(["Tables"], out)
+        // case 1: return "primary key";
+        // case 2: return "unique key";
+        // case 3: return "key";
+
+        var data = []
+        for (var c = 0; c < this.columns.length; c++) {
+            var row = []
+            var colDef = this.columns[c]
+
+            if (colDef.keyType == 1 || colDef.keyType == 2 || colDef.keyType == 3) {
+                row.push(colDef.getFieldName(), colDef.getKeyType())
+                data.push(row)
+            }
+
+        }
+
+        return tools.tableDisplayData(["Indexs", "Key_type"], data)
     }
 
 }

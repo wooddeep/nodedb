@@ -22,7 +22,7 @@ var showIndex = new Command(["show", "index", "from"], async (arr) => {
         throw new Error(`no table name!`) 
     }
     
-    let out = await table.showIndex(arr[3])
+    let out = await eval.showIndex(arr[3])
 
     return out
 })

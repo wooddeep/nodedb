@@ -45,6 +45,18 @@ class Evaluator {
         }
     }
 
+
+    async showIndex(tableName) {
+        if (!this.tableMap.hasOwnProperty(tableName)) {
+            let table = new Table(tableName, [], 500)
+            await table.init()
+            this.tableMap[tableName] = { "table": table }
+        }
+
+        return this.tableMap[tableName].table.showIndex()
+    }
+
+
     // CREATE TABLE `demo`( `demo_id` INT UNSIGNED AUTO_INCREMENT, `title` CHAR(100) NOT NULL, PRIMARY KEY ( `demo_id`));
     // 目前, 只创建单表
     async evalCreateTable(ast) {
@@ -206,7 +218,7 @@ class Evaluator {
                         right.rows.push(lrow)
                     }
                 })
-                
+
                 return { 'cols': left.cols, 'rows': right.rows }
 
             default:
