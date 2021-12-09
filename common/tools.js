@@ -32,8 +32,8 @@ const {
 } = require("./const.js")
 
 
-function buffer(key) {
-    let buffer = Buffer.alloc(constant.KEY_MAX_LEN)
+function buffer(key, len = constant.KEY_MAX_LEN) {
+    let buffer = Buffer.alloc(len)
     buffer.fill(0)
     buffer.writeInt32LE(key)
     return buffer

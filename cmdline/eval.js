@@ -119,6 +119,47 @@ class Evaluator {
         return 'ok'
     }
 
+
+    // {
+    //     type: 'create',
+    //     index_type: null,
+    //     keyword: 'index',
+    //     index: 'age_index',
+    //     on_kw: 'on',
+    //     table: { db: null, table: 'test' },
+    //     index_columns: [
+    //       {
+    //         column: { type: 'column_ref', table: null, column: 'age' },
+    //         order: 'asc'
+    //       }
+    //     ],
+    //     index_using: null,
+    //     index_options: null,
+    //     algorithm_option: null,
+    //     lock_option: null
+    //   }
+
+    // CREATE index age_index ON test (age)
+    // 目前, 只创建单索引
+    async evalCreateIndex(ast) {
+        console.dir(ast, { depth: null, colors: true })
+
+        let tableName = ast.table.table
+        let idxName = ast.index
+        let colName = ast.index_columns[0].column.column
+
+        if (!this.tableMap.hasOwnProperty(tableName)) {
+            let table = new Table(tableName, [], 500)
+            await table.init()
+            this.tableMap[tableName] = { "table": table }
+        }
+
+        //  创建索引文件
+        await this.tableMap[tableName].table.createIndex(colName, idxName)
+        await this.tableMap[tableName].table.flush()
+        return 'ok'
+    }
+
     // 删除表时, 把表关联的index一并删除掉, 只支持删一个表
     async evalDropTable(ast) {
 

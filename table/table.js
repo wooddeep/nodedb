@@ -21,6 +21,9 @@ const {
     NODE_TYPE_DATA,
     START_OFFSET,
     DATA_HEAD_LEN,
+    COL_TYPE_INT,
+    COL_TYPE_FPN,
+    COL_TYPE_STR,
 } = require("../common/const")
 
 class Table {
@@ -34,6 +37,7 @@ class Table {
 
         this._page = new DataPage()
         this._index = new Bptree(100, PAGE_SIZE, 4, 6) // 主键索引 4: 主键是整形数，6：页索引 + 页内偏移
+        this._indexMap = {} // 其他索引表, 动态创建
         this._pidx = new Pidx()
         this._buff = new Buff(this.buffSize, this._pidx)
     }
@@ -133,6 +137,9 @@ class Table {
 
         let indexName = path.join(this.namePrefix, 'AID')  // 每个表都需要有个默认的主键索引列AID, TODO: 隐藏该列
         await this._index.init(`${indexName}.index`) // 创建索引文件 TOOD 
+
+        // TODO 填充其他索引表: _indexMap
+
         this.fileId = await fileops.openFile(this.tableName)
         let stat = await fileops.statFile(this.fileId)
         winston.info("file size = " + stat.size)
@@ -174,6 +181,53 @@ class Table {
         }
 
         return this.fileId
+    }
+
+    async createIndex(colName, idxName) {
+        let indexName = path.join(this.namePrefix, idxName)
+        let colDef = this.getColumnByName(colName)
+        let colSize = colDef.size()
+
+        let index = new Bptree(100, PAGE_SIZE, colSize, 6) // 列索引 ~ 6：页索引 + 页内偏移 
+        let indexfile = `${indexName}.index`
+        await index.drop(indexfile)
+        await index.init(indexfile) // 初始化
+
+        // 1. 对已有的数据加入索引
+        let max = await this._index.locateMaxLeaf() // 查询到最大数据所在页节点
+        let out = []
+        if (max.type != NODE_TYPE_ROOT) {
+            out = await this._index.selectAll(max) // 查询所有数据
+        }
+
+        for (var i = 0; i < out.length; i++) {
+            let value = out[i] // 页索引 + 页内偏移
+
+            let pageIndex = value.readUInt32LE()
+            let slotIndex = value.readUInt16LE(4)
+    
+            winston.info(`## pageIndex = ${pageIndex}, slotIndex= ${slotIndex}`)
+    
+            let page = await this._buff.getPageNode(pageIndex)
+            let row = page.getRow(slotIndex)
+
+
+            var key = this.getColValueByName(row, colName) // 根据列名称获取值
+            let kbuf = tools.buffer(key, colSize)
+            await index.insert(kbuf, value) // 以目标列列为键，创建索引
+            
+        }
+
+        index.flush() // 写入磁盘
+
+        this._indexMap[idxName] = index // 填充
+
+        // 2. 修改table的描述信息
+        colDef.setKeyType(3) // 设置键类型为 普通键
+        colDef.setKeyName(idxName) // 设置键的名称
+
+                
+        
     }
 
     async insert(row) {
@@ -225,7 +279,11 @@ class Table {
         index.writeUInt32LE(page.index, 0) // 页索引
         index.writeUInt16LE(slot, 4) // 页内偏移
         let kbuf = tools.buffer(row[0])
-        await this._index.insert(kbuf, index) // TODO 暂时以第一列为主键，创建索引
+        await this._index.insert(kbuf, index) // 第一列为主键，创建索引
+
+
+        // 4. TODO 添加其他列的索引
+
         return "ok"
     }
 
@@ -265,10 +323,53 @@ class Table {
     }
 
 
+    getColumnByName(colName) {
+        let type = this.columns.filter(col => col.getFieldName() == colName)[0]
+        return type
+    }
+
     getColTypeByName(colName) {
         let type = this.columns.filter(col => col.getFieldName() == colName)[0].type
         return type
     }
+
+    getColValueByName(row, colName) {
+        var type = COL_TYPE_INT
+        var start = 0
+        var out = undefined
+        var size = 0
+        for (var i = 0; i < this.columns.length; i++) {
+            let column = this.columns[i]
+            var name = column.getFieldName()
+            size = column.size()
+
+            if (name != colName) {
+                start = start + size
+            } else {
+                type = column.type
+                break
+            }
+
+        }
+
+        switch (type) {
+            case COL_TYPE_INT:
+                out = row.readUInt32LE(start)
+                break;
+
+            case COL_TYPE_FPN:
+                out = row.readFloatLE(start)
+                break;
+
+            case COL_TYPE_STR:
+                out = row.slice(start, start + size).toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
+                break;
+
+        }
+
+        return out
+    }
+
 
 
     /*
