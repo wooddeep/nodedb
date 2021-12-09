@@ -87,6 +87,20 @@ async function test() {
     console.log(root)
 }
 
+async function execBash(command) {
+    let promise = new Promise((resolve, reject) => {
+        var exec = require('child_process').exec;
+        exec(command, function (err, out) {
+            if (err) {
+                reject(false)
+            } else {
+                resolve(true)
+            }
+        });
+    });
+    return promise
+}
+
 
 function tableDisplayData(header, rows, coldef = undefined) {
 
@@ -201,6 +215,7 @@ const tools = {
     tableDisplayData: tableDisplayData,
     bptreeValType: bptreeValType,
     tableColValue: tableColValue,
+    execBash: execBash,
 }
 
 module.exports = tools;

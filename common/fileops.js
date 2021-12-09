@@ -165,6 +165,33 @@ function unlinkFile(filename) {
     return promise
 }
 
+async function mkdir(path) {
+    let promise = new Promise((resolve, reject) => {
+        fs.mkdir(path, function (err, out) {
+            if (err) {
+                reject(false)
+            } else {
+                resolve(true)
+            }
+        });
+    });
+    return promise
+}
+
+async function rmdir(path) {
+    let promise = new Promise((resolve, reject) => {
+        fs.rm(path, { recursive: true }, function (err) {
+            if (err) {
+                reject(false)
+            } else {
+                resolve(true)
+            }
+        });
+    });
+    return promise
+}
+
+
 var fileops = {
     existFile: existFile,
     createFile: createFile,
@@ -175,6 +202,8 @@ var fileops = {
     statFile: statFile,
     syncFile: syncFile,
     unlinkFile: unlinkFile,
+    mkdir: mkdir,
+    rmdir: rmdir,
 }
 
 module.exports = fileops;

@@ -120,8 +120,7 @@ class Table {
             let root = await tools.findRoot(path.dirname(module.filename))
             this.tableName = path.join(root, path.basename(this.tableName))
             let ret = await fileops.unlinkFile(this.tableName)
-            let indexName = path.join(this.namePrefix, 'AID')  // 每个表都需要有个默认的主键索引列AID, TODO: 隐藏该列
-            await this._index.drop(`${indexName}.index`)
+            await fileops.rmdir(path.join(root, this.namePrefix))
         } catch (e) {
             winston.info(e)
         }
@@ -133,12 +132,11 @@ class Table {
         let exist = await fileops.existFile(this.tableName)
         if (!exist) { // 文件不存在则创建
             await fileops.createFile(this.tableName)
+            await fileops.mkdir(path.join(root, this.namePrefix)) // 创建索引目录
         }
 
-        let indexName = path.join(this.namePrefix, 'AID')  // 每个表都需要有个默认的主键索引列AID, TODO: 隐藏该列
-        await this._index.init(`${indexName}.index`) // 创建索引文件 TOOD 
-
-        // TODO 填充其他索引表: _indexMap
+        let pkeyName = path.join(this.namePrefix, 'AID')  // 每个表都需要有个默认的主键索引列AID, TODO: 隐藏该列
+        await this._index.init(`${pkeyName}.index`) // 创建索引文件 TOOD 
 
         this.fileId = await fileops.openFile(this.tableName)
         let stat = await fileops.statFile(this.fileId)
@@ -180,11 +178,25 @@ class Table {
             await this._buff.setPageNode(pageIndex, pageNode)
         }
 
+        // 填充其他索引表 _indexMap
+        for (var i = 0; i < this.columns.length; i++) {
+            var colDef = this.columns[i]
+            if (colDef.keyType == 2 || colDef.keyType == 3) { // 列上添加了索引
+                var colName = colDef.getFieldName() // 通过字段名, 来索引索引文件 TODO 替换成索引名称
+                var indexName = path.join(this.namePrefix, colName)
+                var colSize = colDef.size()
+                var index = new Bptree(100, PAGE_SIZE, colSize, 6) // 列索引 ~ 6：页索引 + 页内偏移 
+                var indexfile = `${indexName}.index`
+                await index.init(indexfile) 
+                this._indexMap[colName] = index
+            }
+        }
+
         return this.fileId
     }
 
     async createIndex(colName, idxName) {
-        let indexName = path.join(this.namePrefix, idxName)
+        let indexName = path.join(this.namePrefix, colName)
         let colDef = this.getColumnByName(colName)
         let colSize = colDef.size()
 
@@ -205,29 +217,24 @@ class Table {
 
             let pageIndex = value.readUInt32LE()
             let slotIndex = value.readUInt16LE(4)
-    
+
             winston.info(`## pageIndex = ${pageIndex}, slotIndex= ${slotIndex}`)
-    
+
             let page = await this._buff.getPageNode(pageIndex)
             let row = page.getRow(slotIndex)
-
 
             var key = this.getColValueByName(row, colName) // 根据列名称获取值
             let kbuf = tools.buffer(key, colSize)
             await index.insert(kbuf, value) // 以目标列列为键，创建索引
-            
         }
 
         index.flush() // 写入磁盘
 
-        this._indexMap[idxName] = index // 填充
+        this._indexMap[colName] = index // 填充
 
         // 2. 修改table的描述信息
         colDef.setKeyType(3) // 设置键类型为 普通键
-        colDef.setKeyName(idxName) // 设置键的名称
-
-                
-        
+        colDef.setKeyName(idxName) // 设置键的名称        
     }
 
     async insert(row) {
@@ -274,15 +281,21 @@ class Table {
 
         this._buff.setPageNode(page.index, page)
 
-        // 3. 创建索引值
+        // 3. 添加主键索引
         let index = Buffer.alloc(6)
         index.writeUInt32LE(page.index, 0) // 页索引
         index.writeUInt16LE(slot, 4) // 页内偏移
         let kbuf = tools.buffer(row[0])
         await this._index.insert(kbuf, index) // 第一列为主键，创建索引
 
-
-        // 4. TODO 添加其他列的索引
+        // 4. 添加其他列的索引
+        for (var colName in this._indexMap) {
+            var colDef = this.getColumnByName(colName)
+            var conIdx = this.getColIndexByName(colName)
+            var key = row[conIdx] // 根据列名称获取值
+            let kbuf = tools.buffer(key, colDef.size())
+            await this._indexMap[colName].insert(kbuf, index) // 以目标列列为键，创建索引
+        }
 
         return "ok"
     }
@@ -303,12 +316,22 @@ class Table {
         return row
     }
 
+    getIndexByColName(colName) {
+        if (colName == 'AID') {
+            return this._index
+        } else {
+            return this._indexMap[colName]
+        }
+    }
+
     /*
      * 根据加索引的名称来, TODO 多索引的情况，根据列名获取索引信息
      */
     async selectByIndex(colName, colValue) {
         let kbuf = tools.buffer(colValue)
-        let value = await this._index.select(kbuf) // TODO 多索引的情况
+        let index = this.getIndexByColName(colName)
+
+        let value = await index.select(kbuf) // TODO 多索引的情况
         if (value == undefined) return undefined
 
         let pageIndex = value.readUInt32LE()
@@ -326,6 +349,15 @@ class Table {
     getColumnByName(colName) {
         let type = this.columns.filter(col => col.getFieldName() == colName)[0]
         return type
+    }
+
+    getColIndexByName(colName) {
+        for (var c = 0; c < this.columns.length; c++) {
+            if (this.columns[c].getFieldName() == colName) {
+                return c
+            }
+        }
+        return -1
     }
 
     getColTypeByName(colName) {
@@ -378,27 +410,28 @@ class Table {
     async selectAllByColComp(colName, oper, colValue) {
         var out = []
 
+        let index = this.getIndexByColName(colName)
+
         let type = this.getColTypeByName(colName)
 
         if (oper == '>') {
-            out = await this._index.selectGreat(colValue, type)
+            out = await index.selectGreat(colValue, type)
         }
 
         if (oper == '>=') {
-            this.columns
-            out = await this._index.selectGreat(colValue, type, true)
+            out = await index.selectGreat(colValue, type, true)
         }
 
         if (oper == '<') {
-            out = await this._index.selectLittle(colValue, type)
+            out = await index.selectLittle(colValue, type)
         }
 
         if (oper == '<=') {
-            out = await this._index.selectLittle(colValue, type, true)
+            out = await index.selectLittle(colValue, type, true)
         }
 
         if (oper == '=') {
-            out = await this._index.selectEqual(colValue, type)
+            out = await index.selectEqual(colValue, type)
         }
 
         let rows = []
@@ -463,11 +496,20 @@ class Table {
         }
         await fileops.syncFile(this.fileId)
         await this._index.flush()
+
+        for (var colName in this._indexMap) {
+            await this._indexMap[colName].flush()
+        }
+
     }
 
     async close() {
         await fileops.closeFile(this.fileId)
         await this._index.close()
+
+        for (var colName in this._indexMap) {
+            await this._indexMap[colName].close()
+        }
     }
 
     /*
@@ -561,11 +603,6 @@ class Table {
     // | test  |          0 | PRIMARY  |            1 | id          | A         |           2 |     NULL | NULL   |      | BTREE      |         |               |
     // +-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
     async showIndex() {
-        //let root = await tools.findRoot(path.dirname(module.filename))
-        //let indexDir = path.join(root, tbname)
-        //let files = await tools.readfile(indexDir)
-        //let names = files.map(obj => obj.name)
-        //let out = names.filter(name => name.indexOf('.index') > 0).map(name => name.replace(/\.index/, ''))
 
         // case 1: return "primary key";
         // case 2: return "unique key";
