@@ -20,8 +20,14 @@
   - [4.2 测试数据表](#42-测试数据表)
 
 ## 1. 说明 
-任何一个应用系统中，数据库都处于核心的地位。无论业务逻辑的设计，还是系统性能的优化最终都归结于数据库的选型和表设计。而数据库的引擎核心在于b+树，为了厘清b+树的底层原理，我从零开始手撸b+树，并在该b+树的基础上，实现一个简单的kv存储的玩具；然后设计和开发了关系型数据库的表的数据结构和文件存储格式，并用b+树作为表的索引；最后引入sql的解析，把sql的ast解释执行映射到对b+树的操作。目前已经支撑部分sql命令：show tables、create table、show index、create index、select <cols> from <table> where <condition> (condition支持in, >, >=, =, <=, <, 以及select子句嵌套)。group by，limit，join等语法逐步支持中。
+任何一个应用系统中，数据库都处于核心的地位。无论业务逻辑的设计，还是系统性能的优化最终都归结于数据库的选型和表设计。而数据库的引擎核心在于b+树，为了厘清b+树的底层原理，我从零开始手撸b+树，并在该b+树的基础上，实现一个简单的kv存储的玩具；然后设计和开发了关系型数据库的表的数据结构和文件存储格式，并用b+树作为表的索引；最后引入sql的解析，把sql的ast解释执行映射到对b+树的操作。目前已经支撑部分sql命令：
+* show tables
+* create table
+* show index
+* create index
+* select column_list from table_name where condition (condition支持in, >, >=, =, <=, <, 以及select子句嵌套)
 
+group by，limit，join等语法逐步支持中。 </br>
 为了劲量的降低开发难度，首先采用nodejs来实现这颗b+树，在原型验证通过之后，可以考虑切换到其他语言。
 </br>
 
