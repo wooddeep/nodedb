@@ -310,7 +310,7 @@ class Evaluator {
 
     }
 
-    dataFormat(out, colSel = undefined) {
+    dataFormat(out, colSel = undefined, groupBy) {
         let cols = out.cols
         let rows = out.rows
 
@@ -348,15 +348,21 @@ class Evaluator {
         if (colSel != undefined && colSel instanceof Array) {
             let seled = colSel.filter(def => def.expr.type == 'column_ref').map(def => def.expr.column) // TODO 目前只有数据库的列, 需要加上其他列
             let index = []
+            let imap = {}
             for (var i = 0; i < seled.length; i++) {
                 for (var j = 0; j < header.length; j++) {
-                    if (header[j] == seled[i]) {
-                        index.push(j)
+                    if (header[j] == seled[i]) { // 列名称匹配
+                        imap[header[j]] = index.length
+                        index.push(j) // 目标列的下表集合
                     }
                 }
             }
 
-            let selData = data.map(row => { let out = []; index.forEach(i => out.push(row[i])); return out })
+            var selData = data.map(row => { let out = []; index.forEach(i => out.push(row[i])); return out })
+            if (groupBy != undefined) {
+                let gbc = imap[groupBy[0].column] // TODO, 目前只支持按一列groupby, 后续考虑其他情况 gbc: group by column
+                selData = selData.filter((orow, i) => i === selData.map(irow => irow[gbc]).indexOf(orow[gbc])) // 去重
+            }
 
             return [seled, selData]
         }
@@ -393,7 +399,9 @@ class Evaluator {
             out = await this.evalFrom(ast)
         }
 
-        let formed = this.dataFormat(out, columns)
+        let groupBy = ast.groupby
+
+        let formed = this.dataFormat(out, columns, groupBy)
         if (direct) { // 返回显示结果
             let disp = tools.tableDisplayData(formed[0], formed[1])
             return disp // 返回待显示字符串

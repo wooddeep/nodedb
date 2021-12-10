@@ -70,7 +70,9 @@ async function test4() {
 async function test5() {
     //await cmdline.executeOne("show index from test")
     //await cmdline.executeOne("CREATE index age_index ON test (age)")
-    let ast = parser.astify("select * from test where AID >=1 and age < 38")
+    //let ast = parser.astify("select * from test where AID >=1 and age < 38")
+
+    let ast = parser.astify("select AID, name, age from test group by age")
     let disp = await eval.evalSelect(ast)
     console.log(disp)
     await eval.close()    
