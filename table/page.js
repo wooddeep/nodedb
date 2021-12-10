@@ -75,7 +75,7 @@ class DataPage extends PageBase {
         return new DataPage(type, size)
     }
 
-    pageToBuff() {
+    pageToBuff(/*bitMapSize = undefined, rowSize = undefined*/) {
         let buff = Buffer.alloc(this.size)
         buff.writeInt32LE(this.prev, PREV_OFFSET)  // 列数目
         buff.writeInt32LE(this.next, NEXT_OFFSET) // 一行大小
@@ -103,7 +103,7 @@ class DataPage extends PageBase {
             buff.writeUInt8(this.type, DATA_TYPE_OFFSET)
             this.bitmap.getBuff().copy(buff, BIT_MAP_OFFSET)
             for (var index in this.rowMap) {
-                this.rowMap[index].copy(buff, BIT_MAP_OFFSET + this.bitMapSize + index * this.rowSize)
+                this.rowMap[index].copy(buff, BIT_MAP_OFFSET + this.bitMapSize + index * this.rowSize) // TODO 
             }
         }
 

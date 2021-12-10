@@ -4,7 +4,6 @@ const Column = require("../table/column")
 const assert = require('assert');
 const { Parser } = require('node-sql-parser');
 const Evaluator = require('../cmdline/eval')
-const cmdline = require('../cmdline/cli')
 const tools = require('../common/tools')
 
 const parser = new Parser();
@@ -21,20 +20,19 @@ async function test1() {
     columns.push(col1)
     columns.push(col2)
 
+    let existed = await Table.existed(tbname)
+
     let table = new Table(tbname, columns, 500)
-    await table.drop()
-    await table.init()
 
-    let value = [1, "lihan", 38]
-
-    await table.insert(value)
-
-    value = [2, "cao", 36]
-
-    await table.insert(value)
+    if (!existed) {
+        await table.init()
+        let value = [1, "lihan", 38]
+        await table.insert(value)
+    } else {
+        await table.init()
+    }
 
     let row = await table.selectById(1)
-
     let nameBuff = Buffer.alloc(32)
     row.copy(nameBuff, 0, 4, 36)
     let name = nameBuff.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, "")
@@ -45,15 +43,6 @@ async function test1() {
     await table.flush()
     await table.close()
 
-    // table = new Table(tbname, [], 500)
-    // await table.init()
-
-    // let ast = parser.astify("select * from test")
-    // let disp = await eval.evalSelect(ast)
-
-    // console.log(disp)
-
-    // await table.close()
 }
 
 async function test2() {
@@ -74,16 +63,14 @@ async function test3() {
 async function test4() {
     //await cmdline.executeOne("show index from")
     //await cmdline.executeOne("select * from test where AID > (select AID from test where AID = 1)")
-
     //await cmdline.executeOne("select * from test where AID = 1")
-    await cmdline.executeOne("select * from test where age = 36")
-
+    //await cmdline.executeOne("select * from test where age = 36")
     //await cmdline.executeOne("select * from test where AID >=1 and age = 38")
 }
 
 async function test5() {
     //await cmdline.executeOne("show index from test")
-    await cmdline.executeOne("CREATE index age_index ON test (age)")
+    //await cmdline.executeOne("CREATE index age_index ON test (age)")
 }
 
 const funcList = [

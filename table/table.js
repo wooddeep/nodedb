@@ -175,6 +175,8 @@ class Table {
             let pageNode = this._page.buffToPage(buff, this.bitMapSize, this.rowSize, this.rowNum, NODE_TYPE_DATA) // TODO
             let pageIndex = Math.floor(index / this.PAGE_SIZE)
             pageNode.index = pageIndex
+            pageNode.bitMapSize = this.bitMapSize
+            pageNode.rowSize = this.rowSize
             await this._buff.setPageNode(pageIndex, pageNode)
         }
 
@@ -285,6 +287,9 @@ class Table {
         let index = Buffer.alloc(6)
         index.writeUInt32LE(page.index, 0) // 页索引
         index.writeUInt16LE(slot, 4) // 页内偏移
+
+        winston.error(`##[2] page.index = ${page.index}, slot = ${slot}`)
+
         let kbuf = tools.buffer(row[0])
         await this._index.insert(kbuf, index) // 第一列为主键，创建索引
 
@@ -490,7 +495,7 @@ class Table {
         for (var index = 0; index < pageNum; index++) {
             var page = await this._buff.getPageNode(index, true)
             if (page != undefined && page.dirty == true) {
-                let buff = page.pageToBuff()
+                let buff = page.pageToBuff(/*this.bitMapSize, this.rowSize*/)
                 await fileops.writeFile(this.fileId, buff, 0, this.PAGE_SIZE, index * this.PAGE_SIZE)
             }
         }
@@ -623,6 +628,12 @@ class Table {
         return tools.tableDisplayData(["Indexs", "Key_type"], data)
     }
 
+    static async existed(tbname) {
+        let root = await tools.findRoot(path.dirname(module.filename))
+        let file = path.join(root, `${tbname}.data`)
+        let exist = await fileops.existFile(file)
+        return exist
+    }
 }
 
 module.exports = Table

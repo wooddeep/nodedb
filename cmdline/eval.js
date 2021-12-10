@@ -250,7 +250,7 @@ class Evaluator {
 
         switch (oper) {
             case oper.match(/and/i)?.input:
-                var rows = left.rows.filter(lrow => right.rows.filter(rrow => lrow.slice(0, 4).compare(rrow.slice(0, 4)) == 0))
+                var rows = left.rows.filter(lrow => right.rows.filter(rrow => rrow.slice(0, 4).compare(lrow.slice(0, 4)) == 0).lenght > 0)
                 return { 'cols': left.cols, 'rows': rows }
 
             case oper.match(/or/i)?.input:
