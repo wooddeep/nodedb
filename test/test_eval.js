@@ -65,20 +65,23 @@ async function test4() {
     //await cmdline.executeOne("select * from test where AID > (select AID from test where AID = 1)")
     //await cmdline.executeOne("select * from test where AID = 1")
     //await cmdline.executeOne("select * from test where age = 36")
-    //await cmdline.executeOne("select * from test where AID >=1 and age = 38")
 }
 
 async function test5() {
     //await cmdline.executeOne("show index from test")
     //await cmdline.executeOne("CREATE index age_index ON test (age)")
+    let ast = parser.astify("select * from test where AID >=1 and age < 38")
+    let disp = await eval.evalSelect(ast)
+    console.log(disp)
+    await eval.close()    
 }
 
 const funcList = [
-    test1,
+    //test1,
     //test2,
     //test3,
     //test4,
-    //test5
+    test5
 ]
 
 async function test() {
