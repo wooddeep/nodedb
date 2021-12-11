@@ -305,71 +305,163 @@ class Evaluator {
             for (var dbi = 0; dbi < from.length; dbi++) {
                 //console.dir(from[dbi], { depth: null, colors: true })
             }
-
         }
-
     }
 
-    dataFormat(out, colSel = undefined, groupBy) {
-        let cols = out.cols
-        let rows = out.rows
 
-        let header = cols.map(col => col.getFieldName())
+    evalExprName(expr) {
+        let type = expr.type
+        switch (type) {
+            case 'column_ref':
+                return expr.column
+        }
+    }
 
-        let data = rows.map(row => {
+    /*
+     * @colSel: 每列的列定义
+     * @head: 所有数据列的列名
+     * @groupData: 分组数据
+     * @groupIndex: 分组某列在所有列中所占的下标
+     */
+    evalNameByColExpr(colSel, header, groupData, groupIndex) {
+        // 转化选中列的名称
+        let seledCol = colSel.map(col => {
+            if (col.expr.type == 'aggr_func') {
+                let name = this.evalExprName(col.expr.args.expr)
+                return `${col.expr.name}(${name})`
+            } else {
+                return col.expr.column
+            }
+        })
+        return seledCol
+    }
+
+    /*
+     * @colSel: 每列的列定义
+     * @head: 所有数据列的列名
+     * @groupData: 分组数据
+     * @groupIndex: 分组某列在所有列中所占的下标
+     */
+    evalGroupByColExpr(colSel, header, groupData, groupIndex) {
+        var table = []
+        var rtnFlag = false
+        for (var gdi = 0; gdi < groupData.length; gdi++) {
+            var group = groupData[gdi]
+            var row = []
+            for (var csi = 0; csi < colSel.length; csi++) {
+                var colDef = colSel[csi]
+
+                if (colDef.expr.type == 'aggr_func') {
+                    var funcName = colDef.expr.name
+                    var funxExpr = colDef.expr.args.expr
+                    if (funcName.match(/count/i) != null) {
+                        row.push(`${groupData.length}`) // 统计函数, 且未分组的情况下，直接返回一行
+                        rtnFlag = true
+                    } else {
+                        var colIdx = header.findIndex(head => head == column)
+                        row.push(group[colIdx])
+                    }
+                }
+
+                if (colDef.expr.type == 'column_ref') {
+                    var column = colDef.expr.column
+                    var colIdx = header.findIndex(head => head == column)
+                    row.push(group[colIdx])
+                }
+            }
+
+            table.push(row)
+
+            if (rtnFlag == true) { // 统计函数, 且未分组的情况下，直接返回一行
+                return table
+            }
+        }
+
+        return table
+    }
+
+
+    /*
+     * @colSel: 每列的列定义
+     * @head: 所有数据列的列名
+     * @groupData: 分组数据
+     * @groupIndex: 分组某列在所有列中所占的下标
+     */
+    evalDataByColExpr(colSel, header, groupData, groupIndex) {
+        var table = []
+
+        if (groupIndex < 0) {
+            return this.evalGroupByColExpr(colSel, header, groupData, groupIndex)
+        }
+
+        for (var gdi = 0; gdi < groupData.length; gdi++) {
+            table.push(...this.evalGroupByColExpr(colSel, header, groupData[gdi], groupIndex))
+        }
+
+        return table
+    }
+
+    dataFormat(input, colSel = undefined, groupBy) {
+
+        let cols = input.cols // 所有列定义
+        let rows = input.rows
+
+        let header = cols.map(col => col.getFieldName()) // 所有列的名称
+
+        let data = rows.map(row => {  // 每行包含所有列的内容
             let out = []
             let offset = 0
             for (var c = 0; c < cols.length; c++) {
-
                 let size = cols[c].size()
                 if (cols[c].type == 0) {  // case 0: return "integer";
                     out.push(row.readUInt32LE(offset).toString())
                     offset += 4
                 }
-
                 if (cols[c].type == 1) { // case 1: return "float";
                     out.push(row.readFloatLE(offset).toString())
                     offset += 4
                 }
-
                 if (cols[c].type == 2) {  // case 2: return "string";
                     let buff = Buffer.alloc(size)
                     row.copy(buff, 0, offset, offset + size)
                     out.push(buff.toString().replace(/^[\s\uFEFF\xA0\0]+|[\s\uFEFF\xA0\0]+$/g, ""))
                     offset += size
                 }
-
             }
             return out
         })
 
+        let groupIndex = header.findIndex(col => groupBy != undefined && col == groupBy[0].column) // group某列的下標
+        var groupMap = {}
+        var groupData = [] // 默認不對數據group
+        var groupSet = new Set()
+        for (var di = 0; groupIndex >= 0 && di < data.length; di++) { // 对数据分组
+            var row = data[di]
+            var key = row[groupIndex]
+            if (groupSet.has(key)) {
+                var index = groupMap[key]
+                groupData[index].push(row)
+            } else {
+                var index = groupData.length
+                groupData.push([row])
+                groupMap[key] = index
+                groupSet.add(key)
+            }
+        }
 
-        // TODO 优化程序, 直接处理选中的列，无需对所有列进行处理      
+        if (groupIndex < 0) { // 没有分组的情况下
+            groupData = data
+        }
+
+        //TODO 优化程序, 直接处理选中的列，无需对所有列进行处理 , OK  
         if (colSel != undefined && colSel instanceof Array) {
-            let seled = colSel.filter(def => def.expr.type == 'column_ref').map(def => def.expr.column) // TODO 目前只有数据库的列, 需要加上其他列
-            let index = []
-            let imap = {}
-            for (var i = 0; i < seled.length; i++) {
-                for (var j = 0; j < header.length; j++) {
-                    if (header[j] == seled[i]) { // 列名称匹配
-                        imap[header[j]] = index.length
-                        index.push(j) // 目标列的下表集合
-                    }
-                }
-            }
-
-            var selData = data.map(row => { let out = []; index.forEach(i => out.push(row[i])); return out })
-            if (groupBy != undefined) {
-                let gbc = imap[groupBy[0].column] // TODO, 目前只支持按一列groupby, 后续考虑其他情况 gbc: group by column
-                selData = selData.filter((orow, i) => i === selData.map(irow => irow[gbc]).indexOf(orow[gbc])) // 去重
-            }
-
-            return [seled, selData]
+            var seledCol = this.evalNameByColExpr(colSel, header, groupData, groupIndex)
+            var seledData = this.evalDataByColExpr(colSel, header, groupData, groupIndex)
+            return [seledCol, seledData]
         }
 
         return [header, data]
     }
-
 
     // 假设orderby 默认以聚簇索引排序, 如果指明了具体的orderby的字段, 则必须在字段上面添加索引!
     async evalSelect(ast, direct = true) {
@@ -409,10 +501,8 @@ class Evaluator {
 
         return formed[1] // 只返回行数据, 不返回列名称
 
-
         // let orderby = ast.orderby
         // let limit = ast.limit
-
         // return "hello"
     }
 
