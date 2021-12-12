@@ -309,31 +309,63 @@ class Evaluator {
     }
 
 
-    evalExprName(expr) {
-        let type = expr.type
+    /*
+     * 根据ast还原显示的每列的名称
+     */
+    evalColShowName(expr) {
+        var type = expr.type
+
         switch (type) {
+            case 'binary_expr':
+                var left = expr.left
+                var right = expr.right
+                var operator = expr.operator
+                var leftName = this.evalColShowName(left)
+                var rightName = this.evalColShowName(right)
+
+                switch(operator) {
+                    case '+':
+                        return `${leftName}+${rightName}`
+                    default:
+                        return '?'
+                }
+
+            case 'aggr_func':
+                var arg = expr.args.expr
+                var argNum = this.evalColShowName(arg)
+                return `${expr.name}(${argNum})`
+
             case 'column_ref':
                 return expr.column
+
+
+            case 'number':
+                return expr.value.toString()
+
+            default:
+                return '?'
         }
     }
 
     /*
      * @colSel: 每列的列定义
-     * @head: 所有数据列的列名
-     * @groupData: 分组数据
-     * @groupIndex: 分组某列在所有列中所占的下标
      */
-    evalNameByColExpr(colSel, header, groupData, groupIndex) {
-        // 转化选中列的名称
-        let seledCol = colSel.map(col => {
-            if (col.expr.type == 'aggr_func') {
-                let name = this.evalExprName(col.expr.args.expr)
-                return `${col.expr.name}(${name})`
-            } else {
-                return col.expr.column
-            }
-        })
-        return seledCol
+    evalNameByColExpr(colSel) {
+        return colSel.map(col => this.evalColShowName(col.expr))
+    }
+
+    evalBinaryExpr(expr, header, groupData, groupIndex) {
+        var operator = expr.operator
+
+        var seled = { 'expr': expr.left }
+        var left = this.evalGroupByColExpr([seled], header, groupData, groupIndex)  // expr.left
+
+        var seled = { 'expr': expr.right }
+        var right = this.evalGroupByColExpr([seled], header, groupData, groupIndex) // expr.left
+
+        return parseInt(left[0][0]) + parseInt(right[0][0]) // TODO 确定类型
+
+        // TODO
     }
 
     /*
@@ -367,6 +399,16 @@ class Evaluator {
                     var column = colDef.expr.column
                     var colIdx = header.findIndex(head => head == column)
                     row.push(group[colIdx])
+                }
+
+                if (colDef.expr.type == 'binary_expr') {
+                    var result = this.evalBinaryExpr(colDef.expr, header, [group], groupIndex)
+                    row.push(result.toString())
+                }
+
+                if (colDef.expr.type == 'number') {
+                    var result = colDef.expr.value
+                    row.push(result.toString())
                 }
             }
 
@@ -455,8 +497,8 @@ class Evaluator {
 
         //TODO 优化程序, 直接处理选中的列，无需对所有列进行处理 , OK  
         if (colSel != undefined && colSel instanceof Array) {
-            var seledCol = this.evalNameByColExpr(colSel, header, groupData, groupIndex)
-            var seledData = this.evalDataByColExpr(colSel, header, groupData, groupIndex)
+            var seledCol = this.evalNameByColExpr(colSel) // 列名称
+            var seledData = this.evalDataByColExpr(colSel, header, groupData, groupIndex) // 列的分组值
             return [seledCol, seledData]
         }
 
