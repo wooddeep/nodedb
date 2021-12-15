@@ -350,11 +350,11 @@ class Evaluator {
     /*
      * @colSel: 每列的列定义
      */
-    evalNameByColExpr(colSel) {
+    evalProjectName(colSel) {
         return colSel.map(col => this.evalColShowName(col.expr))
     }
 
-    evalBinaryExpr(expr, header, groupData, groupIndex) {
+    evalProjectBinaryExpr(expr, header, groupData, groupIndex) {
         var operator = expr.operator
 
         var seled = { 'expr': expr.left }
@@ -364,6 +364,7 @@ class Evaluator {
         var right = this.evalGroupByColExpr([seled], header, groupData, groupIndex) // expr.left
 
         return parseInt(left[0][0]) + parseInt(right[0][0]) // TODO 确定类型
+        
 
         // TODO
     }
@@ -402,7 +403,7 @@ class Evaluator {
                 }
 
                 if (colDef.expr.type == 'binary_expr') {
-                    var result = this.evalBinaryExpr(colDef.expr, header, [group], groupIndex)
+                    var result = this.evalProjectBinaryExpr(colDef.expr, header, [group], groupIndex)
                     row.push(result.toString())
                 }
 
@@ -429,7 +430,7 @@ class Evaluator {
      * @groupData: 分组数据
      * @groupIndex: 分组某列在所有列中所占的下标
      */
-    evalDataByColExpr(colSel, header, groupData, groupIndex) {
+    evalPojectData(colSel, header, groupData, groupIndex) {
         var table = []
 
         if (groupIndex < 0) {
@@ -497,8 +498,8 @@ class Evaluator {
 
         //TODO 优化程序, 直接处理选中的列，无需对所有列进行处理 , OK  
         if (colSel != undefined && colSel instanceof Array) {
-            var seledCol = this.evalNameByColExpr(colSel) // 列名称
-            var seledData = this.evalDataByColExpr(colSel, header, groupData, groupIndex) // 列的分组值
+            var seledCol = this.evalProjectName(colSel) // 列名称
+            var seledData = this.evalPojectData(colSel, header, groupData, groupIndex) // 列的分组值
             return [seledCol, seledData]
         }
 
