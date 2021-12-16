@@ -79,9 +79,9 @@ async function test5() {
     let ast = parser.astify("select test.AID, test.name, test.age, demo.title from test left join demo on test.AID = demo.test_id")
     //let ast = parser.astify("select * from test")
     console.dir(ast, { depth: null, colors: true })
-    let disp = await eval.evalSelect(ast)
-    console.log(disp)
-    await eval.close()    
+    //let disp = await eval.evalSelect(ast)
+    //console.log(disp)
+    //await eval.close()    
 }
 
 const funcList = [

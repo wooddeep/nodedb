@@ -235,6 +235,7 @@ class Evaluator {
 
             var col = leftVal.column
             let out = await this.tableMap[tbname].table.selectAllByColComp(col, oper, compValue) // 通过列过滤
+            out.rows = this.buffToValue(out.rows, out.cols)
             return out
         }
 
@@ -252,12 +253,12 @@ class Evaluator {
 
         switch (oper) {
             case oper.match(/and/i)?.input:
-                var rows = left.rows.filter(lrow => right.rows.find(rrow => rrow.slice(0, 4).compare(lrow.slice(0, 4)) == 0))
+                var rows = left.rows.filter(lrow => right.rows.find(rrow => rrow[0] == lrow[0]))
                 return { 'cols': left.cols, 'rows': rows }
 
             case oper.match(/or/i)?.input:
                 var rows = left.rows.forEach(lrow => {
-                    if (right.rows.find(rrow => lrow.slice(0, 4).compare(rrow.slice(0, 4)) == 0) == undefined) { // 找不到
+                    if (right.rows.find(rrow => lrow[0] == rrow[0]) == undefined) { // 找不到
                         right.rows.push(lrow)
                     }
                 })
@@ -348,9 +349,10 @@ class Evaluator {
             //console.dir(from[dbi], { depth: null, colors: true })
         }
 
+        let data = this.buffToValue(leftRows.rows, leftRows.cols) // 二进制数据转换为可读的asiic数据
+        leftRows.rows = data
+
         if (from.length == 1) { // 只从一张表中select的情况, 直接返回
-            //let data = this.buffToValue(leftRows.rows, leftRows.cols) // 二进制数据转换为可读的asiic数据
-            //leftRows.rows = data
             return leftRows
         }
 
@@ -368,9 +370,9 @@ class Evaluator {
 
             var on = rtable.on
             //let lrow = this.buffToValue(leftRows.rows, leftRows.cols)
-            var xdata = this.evalLeftJoin(on, leftRows.lrow, rrows)
-            console.log(xdata)
-
+            var rows = this.evalLeftJoin(on, leftRows.rows, rrows)
+            console.log(rows)
+            return { 'rows': rows }
             // TODO 
         }
     }
@@ -540,11 +542,14 @@ class Evaluator {
     dataFormat(input, colSel = undefined, groupBy) {
 
         let cols = input.cols // 所有列定义
-        let rows = input.rows // 已经是可读数据
+        //let rows = input.rows // 已经是可读数据
 
-        let data = this.buffToValue(rows, cols)
+        let data = input.rows // this.buffToValue(rows, cols)
 
         let header = cols.map(col => col.getFieldName()) // 所有列的名称
+        if (colSel == '*') {
+            return [header, data]
+        }
 
         let groupIndex = header.findIndex(col => groupBy != undefined && col == groupBy[0].column) // group某列的下標
         var groupMap = {}
@@ -575,7 +580,6 @@ class Evaluator {
             return [seledCol, seledData]
         }
 
-        return [header, data]
     }
 
     // 假设orderby 默认以聚簇索引排序, 如果指明了具体的orderby的字段, 则必须在字段上面添加索引!
@@ -720,6 +724,7 @@ class Evaluator {
 
                                 // TODO 如果右值的列上 有索引, 则直接通过右值查询过滤
                                 var out = await this.tableMap[tbname].table.selectAllByIndex(leftVal.column, rightVal) // 通过列过滤
+                                out.rows = this.buffToValue(out.rows, out.cols)
                                 return out
                         }
 
