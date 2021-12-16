@@ -57,7 +57,9 @@ class Evaluator {
     }
 
 
-    // CREATE TABLE `demo`( `demo_id` INT UNSIGNED AUTO_INCREMENT, `title` CHAR(100) NOT NULL, PRIMARY KEY ( `demo_id`));
+    // CREATE TABLE `demo`( `AID` INT UNSIGNED AUTO_INCREMENT, `name` CHAR(100) NOT NULL, `age` int);
+
+    // CREATE TABLE `demo`( `demo_id` INT UNSIGNED AUTO_INCREMENT, `test_id` INT, `title` CHAR(100) NOT NULL, PRIMARY KEY ( `demo_id`));
     // 目前, 只创建单表
     async evalCreateTable(ast) {
 
@@ -280,31 +282,72 @@ class Evaluator {
         return await this.evalValue(where, from, columns)
     }
 
+
+    getColIndex(ast) {
+        var table = ast.table
+        var column = ast.column
+        var columns = this.tableMap[table].table.columns
+        return columns.findIndex(col => col.getFieldName() == column)
+    }
+
+    evalLeftJoin(on, lrows, rrows) {
+        var type = on.type
+        var oper = on.operator
+        switch (type) {
+            case 'binary_expr':
+                var leftIndex = this.getColIndex(on.left)
+                var rightIndex = this.getColIndex(on.right)
+                // TODO 
+                break
+            default:
+                break
+        }
+    }
+
+
     //console.dir(from, { depth: null, colors: true })
     // TODO 和 evalWhere 关联起来
     async evalFrom(ast) {
         let columns = ast.columns
         let from = ast.from
 
+        var leftRows = []
+
         // 1. 先分析from看是否有join
-        if (from.length == 1) { // 只从一张表中select的情况
-            let tableName = from[0].table // 表名
-            let tableAlias = from[0].as       // 表别名 
-            if (typeof (columns) == 'string') { // select * from dbname
-                let rows = await this.tableMap[tableName].table.selectAll()
+        let leftTable = from[0].table // 左表名
+        let leftAlias = from[0].as    // 左表别名 
+        if (typeof (columns) == 'string') { // select * from dbname
+            leftRows = await this.tableMap[leftTable].table.selectAll()
+        }
 
-                return rows
-            }
+        if (columns instanceof Array) { // 根据列名查询 某列, 暂时查询所有列, 后期优化
+            leftRows = await this.tableMap[leftTable].table.selectAll()
+        }
 
-            if (columns instanceof Array) { // 根据列名查询 某列, 暂时查询所有列, 后期优化
-                let rows = await this.tableMap[tableName].table.selectAll()
+        for (var dbi = 0; dbi < from.length; dbi++) {
+            //console.dir(from[dbi], { depth: null, colors: true })
+        }
 
-                return rows
-            }
+        if (from.length == 1) { // 只从一张表中select的情况, 直接返回
+            return leftRows
+        }
 
-            for (var dbi = 0; dbi < from.length; dbi++) {
-                //console.dir(from[dbi], { depth: null, colors: true })
-            }
+        for (var ti = 1; ti < from.length; ti++) { // 逐步分析每一个右表的数据, 做笛卡尔积
+            var rtable = from[ti]
+            var rast = {}
+            rast.type = ast.type
+            rast.columns = '*' //ast.columns.filter(col => col.expr.table == rtable.table)
+            rast.from = []
+            rast.from.push(rtable)
+
+            var rrows = await this.evalValue(rast)
+
+            console.dir(rast, { depth: null, colors: true })
+
+            var on = rtable.on
+
+            var xdata = this.evalLeftJoin(on, leftRows, rrows)
+
         }
     }
 
@@ -323,7 +366,7 @@ class Evaluator {
                 var leftName = this.evalColShowName(left)
                 var rightName = this.evalColShowName(right)
 
-                switch(operator) {
+                switch (operator) {
                     case '+':
                         return `${leftName}+${rightName}`
                     default:
@@ -363,8 +406,8 @@ class Evaluator {
         var seled = { 'expr': expr.right }
         var right = this.evalGroupByColExpr([seled], header, groupData, groupIndex) // expr.left
 
-        return parseInt(left[0][0]) + parseInt(right[0][0]) // TODO 确定类型
-        
+        return parseInt(left[0][0]) + parseInt(right[0][0]) // TODO 确定类型 ~~~~ TODO TODO TODO
+
 
         // TODO
     }

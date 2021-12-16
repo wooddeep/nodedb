@@ -74,7 +74,11 @@ async function test5() {
 
     //let ast = parser.astify("select count(AID), name, age from test group by age")
     //let ast = parser.astify("select count(AID), name, age from test")
-    let ast = parser.astify("select age + 10, AID, name from test")
+    //let ast = parser.astify("select age + 10, AID, name from test")
+
+    let ast = parser.astify("select test.AID, test.name, test.age, demo.title from test left join demo on test.AID = demo.test_id")
+    //let ast = parser.astify("select * from test")
+    console.dir(ast, { depth: null, colors: true })
     let disp = await eval.evalSelect(ast)
     console.log(disp)
     await eval.close()    
