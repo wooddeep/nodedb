@@ -234,8 +234,8 @@ class Evaluator {
             }
 
             var col = leftVal.column
-            let rows = await this.tableMap[tbname].table.selectAllByColComp(col, oper, compValue) // 通过列过滤
-            return rows
+            let out = await this.tableMap[tbname].table.selectAllByColComp(col, oper, compValue) // 通过列过滤
+            return out
         }
 
         if (leftVal.type != 'column_ref' && rightVal.type == 'column_ref') { // 对比的值都是数据库的列
@@ -290,17 +290,37 @@ class Evaluator {
         return columns.findIndex(col => col.getFieldName() == column)
     }
 
+
     evalLeftJoin(on, lrows, rrows) {
         var type = on.type
         var oper = on.operator
+        var out = []
         switch (type) {
             case 'binary_expr':
                 var leftIndex = this.getColIndex(on.left)
                 var rightIndex = this.getColIndex(on.right)
-                // TODO 
-                break
+
+                switch (oper) {
+                    case '=':
+                        for (var li = 0; li < lrows.length; li++) {
+                            for (var ri = 0; ri < rrows.length; ri++) {
+                                if (lrows[li][leftIndex] == rrows[ri][rightIndex]) {
+                                    lrows[li].push(...rrows[ri])
+                                    out.push(lrows[li])
+                                    continue
+                                }
+                                var patch = new Array(rrows[0].length)
+                                lrows[li].push(...patch)
+                                out.push(lrows[li])
+                            }
+                        }
+                        return out
+                    default:
+                        return out
+                }
+
             default:
-                break
+                return []
         }
     }
 
@@ -329,6 +349,8 @@ class Evaluator {
         }
 
         if (from.length == 1) { // 只从一张表中select的情况, 直接返回
+            //let data = this.buffToValue(leftRows.rows, leftRows.cols) // 二进制数据转换为可读的asiic数据
+            //leftRows.rows = data
             return leftRows
         }
 
@@ -345,9 +367,11 @@ class Evaluator {
             console.dir(rast, { depth: null, colors: true })
 
             var on = rtable.on
+            //let lrow = this.buffToValue(leftRows.rows, leftRows.cols)
+            var xdata = this.evalLeftJoin(on, leftRows.lrow, rrows)
+            console.log(xdata)
 
-            var xdata = this.evalLeftJoin(on, leftRows, rrows)
-
+            // TODO 
         }
     }
 
@@ -487,13 +511,7 @@ class Evaluator {
         return table
     }
 
-    dataFormat(input, colSel = undefined, groupBy) {
-
-        let cols = input.cols // 所有列定义
-        let rows = input.rows
-
-        let header = cols.map(col => col.getFieldName()) // 所有列的名称
-
+    buffToValue(rows, cols) {
         let data = rows.map(row => {  // 每行包含所有列的内容
             let out = []
             let offset = 0
@@ -516,6 +534,17 @@ class Evaluator {
             }
             return out
         })
+        return data
+    }
+
+    dataFormat(input, colSel = undefined, groupBy) {
+
+        let cols = input.cols // 所有列定义
+        let rows = input.rows // 已经是可读数据
+
+        let data = this.buffToValue(rows, cols)
+
+        let header = cols.map(col => col.getFieldName()) // 所有列的名称
 
         let groupIndex = header.findIndex(col => groupBy != undefined && col == groupBy[0].column) // group某列的下標
         var groupMap = {}
@@ -672,13 +701,13 @@ class Evaluator {
                 switch (oper) {
                     case oper.match(/[=\>\<]|!=|>=|<=/)?.input: // 对比运算
                         //console.dir(ast, { depth: null, colors: true })
-                        var rows = await this.evalCompareExpr(tbname, oper, leftVal, rightVal) // 通过列过滤, TODO 
-                        return rows
+                        var out = await this.evalCompareExpr(tbname, oper, leftVal, rightVal) // 通过列过滤, TODO 
+                        return out
 
                     case oper.match(/AND|OR|and|or/)?.input: // 逻辑运算
                         console.dir(ast, { depth: null, colors: true })
-                        var rows = await this.evalLogicExpr(from, columns, oper, leftVal, rightVal) // 通过列过滤, TODO 
-                        return rows
+                        var out = await this.evalLogicExpr(from, columns, oper, leftVal, rightVal) // 通过列过滤, TODO 
+                        return out
 
                     case 'IN': // 先走全表扫描, 
                         // 优化器, 分情况讨论 column, expr(column)
@@ -690,8 +719,8 @@ class Evaluator {
                                 }
 
                                 // TODO 如果右值的列上 有索引, 则直接通过右值查询过滤
-                                var rows = await this.tableMap[tbname].table.selectAllByIndex(leftVal.column, rightVal) // 通过列过滤
-                                return rows
+                                var out = await this.tableMap[tbname].table.selectAllByIndex(leftVal.column, rightVal) // 通过列过滤
+                                return out
                         }
 
                         break;
