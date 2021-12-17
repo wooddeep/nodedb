@@ -311,6 +311,9 @@ class Evaluator {
                                     continue
                                 }
                                 var patch = new Array(rrows[0].length)
+                                for (var i = 0; i < patch.length; i++) {
+                                    patch[i] = 'null'
+                                }
                                 lrows[li].push(...patch)
                                 out.push(lrows[li])
                             }
@@ -323,6 +326,14 @@ class Evaluator {
             default:
                 return []
         }
+    }
+
+
+    getAllColsDef(tbname) {
+        var table = this.tableMap[tbname].table
+        var columns = table.columns.map(col => col.getFieldName())
+        var fullNames = columns.map(col => `${tbname}.${col}`)
+        return this.tableMap[tbname].table.columns.map(col => col.getFieldName()).map(col => `${tbname}.${col}`)
     }
 
 
@@ -356,6 +367,7 @@ class Evaluator {
             return leftRows
         }
 
+        var allCols = this.getAllColsDef(leftTable)
         for (var ti = 1; ti < from.length; ti++) { // 逐步分析每一个右表的数据, 做笛卡尔积
             var rtable = from[ti]
             var rast = {}
@@ -365,15 +377,14 @@ class Evaluator {
             rast.from.push(rtable)
 
             var rrows = await this.evalValue(rast)
-
-            console.dir(rast, { depth: null, colors: true })
-
             var on = rtable.on
-            //let lrow = this.buffToValue(leftRows.rows, leftRows.cols)
             var rows = this.evalLeftJoin(on, leftRows.rows, rrows)
-            console.log(rows)
-            return { 'rows': rows }
-            // TODO 
+
+            var colsDef = this.getAllColsDef(rtable.table)
+            allCols.push(...colsDef)
+
+            return { 'rows': rows, 'acols': allCols }
+            // TODO ~~~~~~  
         }
     }
 
@@ -465,9 +476,10 @@ class Evaluator {
                     }
                 }
 
-                if (colDef.expr.type == 'column_ref') {
+                if (colDef.expr.type == 'column_ref') { // TODO 根据
                     var column = colDef.expr.column
-                    var colIdx = header.findIndex(head => head == column)
+                    var tbname = colDef.expr.table
+                    var colIdx = header.findIndex(col => col.indexOf(`${tbname}.${column}`) >= 0)
                     row.push(group[colIdx])
                 }
 
@@ -542,13 +554,20 @@ class Evaluator {
     dataFormat(input, colSel = undefined, groupBy) {
 
         let cols = input.cols // 所有列定义
-        //let rows = input.rows // 已经是可读数据
+        let data = input.rows // 已经是可读行数据
+        let allCols = input.acols // 在join的情况之下, 表名.列明
 
-        let data = input.rows // this.buffToValue(rows, cols)
+        var header = []
+        if (cols != undefined) {
+            header = cols.map(col => col.getFieldName()) // 所有列的名称
+        }
 
-        let header = cols.map(col => col.getFieldName()) // 所有列的名称
         if (colSel == '*') {
             return [header, data]
+        }
+
+        if (colSel instanceof Array) {
+            header = colSel.map(col => this.evalColShowName(col.expr))
         }
 
         let groupIndex = header.findIndex(col => groupBy != undefined && col == groupBy[0].column) // group某列的下標
@@ -576,6 +595,9 @@ class Evaluator {
         //TODO 优化程序, 直接处理选中的列，无需对所有列进行处理 , OK  
         if (colSel != undefined && colSel instanceof Array) {
             var seledCol = this.evalProjectName(colSel) // 列名称
+            if (allCols != undefined) {
+                header = allCols // 先打个补丁, 再整理 TODO TODO
+            }
             var seledData = this.evalPojectData(colSel, header, groupData, groupIndex) // 列的分组值
             return [seledCol, seledData]
         }
