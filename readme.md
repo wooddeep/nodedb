@@ -36,6 +36,9 @@ group by，limit，join等语法逐步支持中。 </br>
 
 ### 演示
 ![](image/demo.gif)
+### left join
+![](image/left_join.png)
+
 
 
 ## 2. 目录说明
